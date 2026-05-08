@@ -1,74 +1,95 @@
 /**
- * @file Centralized Error Handling Middleware
- * @description Catches all errors thrown/forwarded in the request pipeline
- *              and returns a consistent JSON response.
+ * @file error.middleware.js — Centralized Error Handler
+ *
+ * SINGLE RESPONSIBILITY:
+ *   ALL errors in the app land here via next(err). This middleware formats
+ *   them into a consistent JSON response and sends it to the client.
  *
  * WHY THIS EXISTS:
- * - Without centralized error handling, each controller would need to format
- *   its own error responses — leading to inconsistency.
- * - This middleware distinguishes between known errors (ApiError) and
- *   unexpected errors, logging full details for the latter.
- * - In production, stack traces are hidden from the client for security.
+ *   Without centralized error handling, each controller formats its own
+ *   error responses — leading to inconsistency, leaked stack traces,
+ *   and missed edge cases. This middleware handles everything in one place.
  *
- * HOW IT WORKS:
- * - Express recognizes this as an error handler because it has 4 parameters.
- * - It must be registered AFTER all routes in app.js.
+ * WHAT IT HANDLES:
+ *   - Operational errors (err.statusCode is set by the thrower)
+ *   - Mongoose ValidationError (schema validation failures)
+ *   - Mongoose CastError (invalid ObjectId, etc.)
+ *   - Mongoose duplicate key error (code 11000)
+ *   - JWT errors (JsonWebTokenError, TokenExpiredError)
+ *   - Unknown/unexpected errors (500 fallback)
+ *
+ * RESPONSE SHAPE (always):
+ *   { success: false, message: string, statusCode: number }
+ *
+ * SECURITY:
+ *   Stack traces are NEVER sent in production. Only in development.
+ *
+ * NOTE:
+ *   Express recognizes this as an error handler because it has 4 params.
+ *   It MUST be registered AFTER all routes in app.js.
  */
 
-const ApiError = require('../utils/ApiError');
-const logger = require('../utils/logger');
-const { HttpStatus } = require('../constants');
+const env = require('../config/env');
 
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
-  // ── If it's our custom ApiError, use its properties ──
-  if (err instanceof ApiError) {
-    return res.status(err.statusCode).json({
-      success: err.success,
-      statusCode: err.statusCode,
-      message: err.message,
-      errors: err.errors,
-      // Show stack trace only in development
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-    });
-  }
+  // ── Default values ──
+  err.statusCode = err.statusCode || 500;
+  err.message = err.message || 'Internal Server Error';
 
-  // ── Handle Mongoose validation errors ──
+  // ── Mongoose: Validation Error ──
+  // Triggered when a document fails schema validation (e.g. required field missing).
   if (err.name === 'ValidationError') {
-    const errors = Object.values(err.errors).map((e) => ({
-      field: e.path,
-      message: e.message,
-    }));
-
-    return res.status(HttpStatus.BAD_REQUEST).json({
-      success: false,
-      statusCode: HttpStatus.BAD_REQUEST,
-      message: 'Validation failed',
-      errors,
-    });
+    const messages = Object.values(err.errors).map((e) => e.message);
+    err.statusCode = 400;
+    err.message = messages.join('. ');
   }
 
-  // ── Handle Mongoose duplicate key errors ──
+  // ── Mongoose: Cast Error ──
+  // Triggered when an invalid value is passed for a field type (e.g. bad ObjectId).
+  if (err.name === 'CastError') {
+    err.statusCode = 400;
+    err.message = `Invalid ${err.path}: ${err.value}`;
+  }
+
+  // ── Mongoose: Duplicate Key Error ──
+  // Triggered when a unique-indexed field gets a duplicate value.
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue).join(', ');
-    return res.status(HttpStatus.CONFLICT).json({
-      success: false,
-      statusCode: HttpStatus.CONFLICT,
-      message: `Duplicate value for field: ${field}`,
-      errors: [],
-    });
+    err.statusCode = 409;
+    err.message = `Duplicate value for field: ${field}. Please use a different value.`;
   }
 
-  // ── Unknown / unexpected errors ──
-  logger.error('Unhandled error:', err);
+  // ── JWT: Invalid Token ──
+  if (err.name === 'JsonWebTokenError') {
+    err.statusCode = 401;
+    err.message = 'Invalid token. Please log in again.';
+  }
 
-  return res.status(HttpStatus.INTERNAL_SERVER).json({
+  // ── JWT: Expired Token ──
+  if (err.name === 'TokenExpiredError') {
+    err.statusCode = 401;
+    err.message = 'Token has expired. Please log in again.';
+  }
+
+  // ── Build response ──
+  const response = {
     success: false,
-    statusCode: HttpStatus.INTERNAL_SERVER,
-    message: 'Something went wrong. Please try again later.',
-    errors: [],
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-  });
+    message: err.message,
+    statusCode: err.statusCode,
+  };
+
+  // Include stack trace only in development (never in production)
+  if (env.NODE_ENV === 'development') {
+    response.stack = err.stack;
+  }
+
+  // Log unexpected errors (500s) for debugging
+  if (err.statusCode === 500) {
+    console.error('[ERROR]', err);
+  }
+
+  res.status(err.statusCode).json(response);
 };
 
 module.exports = errorHandler;

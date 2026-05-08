@@ -1,18 +1,29 @@
 /**
- * @file 404 Not Found Middleware
- * @description Catches requests to undefined routes and returns a JSON 404.
+ * @file notFound.middleware.js — 404 Route Catcher
+ *
+ * SINGLE RESPONSIBILITY:
+ *   Catches any request that didn't match a defined route and creates
+ *   a proper error, then passes it to the centralized error handler
+ *   via next(err).
  *
  * WHY THIS EXISTS:
- * - Without this, Express returns its default HTML 404 page, which is
- *   useless for an API client expecting JSON.
- * - Must be registered AFTER all valid routes but BEFORE the error handler.
+ *   Without this, Express returns its default HTML 404 page — useless
+ *   for API clients expecting JSON. This middleware ensures every
+ *   unmatched route gets a consistent JSON error response.
+ *
+ * PLACEMENT:
+ *   Must be registered AFTER all valid routes but BEFORE error.middleware.
+ *
+ * NOTE:
+ *   This middleware does NOT send a response directly. It creates an
+ *   error and forwards it to error.middleware.js, keeping all response
+ *   formatting in one place.
  */
 
-const ApiError = require('../utils/ApiError');
-const { HttpStatus } = require('../constants');
-
 const notFoundHandler = (req, res, next) => {
-  next(new ApiError(HttpStatus.NOT_FOUND, `Route not found: ${req.originalUrl}`));
+  const err = new Error(`Route not found: ${req.method} ${req.originalUrl}`);
+  err.statusCode = 404;
+  next(err);
 };
 
 module.exports = notFoundHandler;

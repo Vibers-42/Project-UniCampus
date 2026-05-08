@@ -1,44 +1,77 @@
 /**
- * @file Route Aggregator
- * @description Central mount point for all API routes. Every module's routes
- *              are imported and mounted under a versioned prefix here.
+ * @file routes/index.js — Central Route Aggregator
  *
- * WHY THIS EXISTS:
- * - app.js stays clean — it only calls `app.use('/api/v1', routes)`.
- * - Adding a new module is one import + one line. No digging through app.js.
- * - API versioning (v1, v2) is handled naturally by changing the prefix.
+ * SINGLE RESPONSIBILITY:
+ *   Mounts all module routes under /api/v1.
+ *   app.js calls app.use('/api/v1', routes) — this file handles the rest.
+ *
+ * ROUTE MAP:
+ *   /api/v1/auth           → Auth (register, verify, refresh, logout)
+ *   /api/v1/users          → User profiles
+ *   /api/v1/resources      → Academic resources
+ *   /api/v1/events         → Campus events
+ *   /api/v1/opportunities  → Internships, hackathons, referrals
+ *   /api/v1/matching       → Teammate matching
+ *   /api/v1/marketplace    → Buy/sell marketplace
+ *   /api/v1/study-groups   → Study groups + messaging
+ *   /api/v1/ai-chatbot     → AI assistant
+ *   /api/v1/notifications  → User notifications
+ *   /api/v1/admin          → Admin operations
  *
  * HOW TO ADD A NEW MODULE:
- * 1. Create `routes/moduleName.routes.js` with its Router.
- * 2. Create `controllers/moduleName.controller.js` with handler functions.
- * 3. Import the router here and mount it:
- *      const moduleRoutes = require('./moduleName.routes');
- *      router.use('/module', moduleRoutes);
+ *   1. Build the module in src/modules/<name>/
+ *   2. Require its routes file here.
+ *   3. Mount it: router.use('/<name>', <name>Routes);
  */
 
 const { Router } = require('express');
-const healthRoutes = require('./health.routes');
 
 const router = Router();
 
-// ───── Active Routes ─────
-router.use('/health', healthRoutes);
+// ───── Module Routes ─────
 
-// ───── Future Module Routes (uncomment as you build them) ─────
-// const authRoutes = require('./auth.routes');
-// const userRoutes = require('./user.routes');
-// const marketplaceRoutes = require('./marketplace.routes');
-// const eventRoutes = require('./event.routes');
-// const clubRoutes = require('./club.routes');
-// const notificationRoutes = require('./notification.routes');
-// const lostFoundRoutes = require('./lostFound.routes');
+// Auth (fully implemented — OTP-based registration and JWT auth)
+const authRoutes = require('../modules/auth/auth.routes');
+router.use('/auth', authRoutes);
 
-// router.use('/auth', authRoutes);
-// router.use('/users', userRoutes);
-// router.use('/marketplace', marketplaceRoutes);
-// router.use('/events', eventRoutes);
-// router.use('/clubs', clubRoutes);
-// router.use('/notifications', notificationRoutes);
-// router.use('/lost-found', lostFoundRoutes);
+// Users (fully implemented — profile CRUD and search)
+const usersRoutes = require('../modules/users/users.routes');
+router.use('/users', usersRoutes);
+
+// Resources (scaffold — academic resource sharing)
+const resourcesRoutes = require('../modules/resources/resources.routes');
+router.use('/resources', resourcesRoutes);
+
+// Events (scaffold — campus events and RSVP)
+const eventsRoutes = require('../modules/events/events.routes');
+router.use('/events', eventsRoutes);
+
+// Opportunities (scaffold — internships, hackathons, referrals)
+const opportunitiesRoutes = require('../modules/opportunities/opportunities.routes');
+router.use('/opportunities', opportunitiesRoutes);
+
+// Matching (scaffold — teammate finder)
+const matchingRoutes = require('../modules/matching/matching.routes');
+router.use('/matching', matchingRoutes);
+
+// Marketplace (scaffold — buy/sell platform)
+const marketplaceRoutes = require('../modules/marketplace/marketplace.routes');
+router.use('/marketplace', marketplaceRoutes);
+
+// Study Groups (scaffold — groups + messaging)
+const studyGroupsRoutes = require('../modules/studyGroups/studyGroups.routes');
+router.use('/study-groups', studyGroupsRoutes);
+
+// AI Chatbot (scaffold — LLM-powered assistant)
+const chatbotRoutes = require('../modules/aiChatbot/aiChatbot.routes');
+router.use('/ai-chatbot', chatbotRoutes);
+
+// Notifications (scaffold — in-app notifications)
+const notificationsRoutes = require('../modules/notifications/notifications.routes');
+router.use('/notifications', notificationsRoutes);
+
+// Admin (scaffold — platform management, admin role required)
+const adminRoutes = require('../modules/admin/admin.routes');
+router.use('/admin', adminRoutes);
 
 module.exports = router;
