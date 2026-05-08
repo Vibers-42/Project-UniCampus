@@ -1,20 +1,25 @@
 /**
  * @file users.routes.js — User Profile Route Definitions
  *
- * This is the ONLY file from users/ imported outside (by routes/index.js).
+ * PUBLIC INTERFACE:
+ *   This is one of only two files in this module that can be imported
+ *   outside the users/ folder (the other is users.service.js).
  *
  * ROUTES:
- *   GET    /users/profile     → own profile
- *   PATCH  /users/profile     → update own profile
- *   GET    /users/search      → search users by filters
- *   GET    /users/:email      → view any user's public profile
+ *   GET    /users/profile     → Get own profile
+ *   PATCH  /users/profile     → Update own profile (upsert)
+ *   GET    /users/search      → Search users (filtered, paginated)
+ *   GET    /users/:email      → View any user's public profile
+ *
+ * MIDDLEWARE ORDER:
+ *   protect → [validation chain] → validate → controller
  *
  * All routes require authentication (protect).
  */
 
 const { Router } = require('express');
 const controller = require('./users.controller');
-const { validateUpdateProfile, validateGetByEmail } = require('./users.validation');
+const { validateUpdateProfile, validateGetByEmail, validateSearch } = require('./users.validation');
 const validate = require('../../middleware/validation.middleware');
 const { protect } = require('../../middleware/auth.middleware');
 
@@ -31,7 +36,7 @@ router.get('/profile', controller.getProfile);
 
 router.patch('/profile', validateUpdateProfile, validate, controller.updateProfile);
 
-router.get('/search', controller.searchUsers);
+router.get('/search', validateSearch, validate, controller.searchUsers);
 
 router.get('/:email', validateGetByEmail, validate, controller.getByEmail);
 

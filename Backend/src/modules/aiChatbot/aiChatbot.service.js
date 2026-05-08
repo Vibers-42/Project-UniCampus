@@ -1,6 +1,7 @@
 /** @file aiChatbot.service.js (scaffold) */
 const ChatSession = require('./aiChatbot.model');
 const { askAI } = require('../../shared/aiService');
+const AppError = require('../../shared/utils/AppError');
 
 const SYSTEM_PROMPT = 'You are UniBot, a helpful AI assistant for UniCampus — a university student platform. Help students with academic questions, campus info, study tips, and general guidance. Be friendly, concise, and helpful.';
 
@@ -8,7 +9,7 @@ const ask = async (email, message, sessionId = null) => {
   let session;
   if (sessionId) {
     session = await ChatSession.findOne({ _id: sessionId, userId: email });
-    if (!session) { const e = new Error('Chat session not found'); e.statusCode = 404; throw e; }
+    if (!session) throw new AppError('Chat session not found', 404);
   } else {
     session = await ChatSession.create({ userId: email, subject: message.substring(0, 50) });
   }

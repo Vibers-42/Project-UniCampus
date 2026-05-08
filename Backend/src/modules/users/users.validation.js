@@ -2,12 +2,18 @@
  * @file users.validation.js — Validation Chains for Users Routes
  *
  * SCOPE: Internal to users/ — only users.routes.js imports this.
+ *
+ * USAGE:
+ *   router.patch('/profile', validateUpdateProfile, validate, ctrl.updateProfile);
+ *   router.get('/:email', validateGetByEmail, validate, ctrl.getByEmail);
  */
 
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 
 /**
  * validateUpdateProfile — Rules for PATCH /users/profile
+ *
+ * All fields optional (partial updates). Whitelist enforced at service layer.
  */
 const validateUpdateProfile = [
   body('name')
@@ -40,7 +46,9 @@ const validateUpdateProfile = [
   body('skills.*')
     .optional()
     .isString()
-    .trim(),
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Each skill must be a non-empty string under 50 characters'),
 
   body('bio')
     .optional()
@@ -57,6 +65,11 @@ const validateUpdateProfile = [
     .optional()
     .isURL()
     .withMessage('GitHub URL must be a valid URL'),
+
+  body('linkedinUrl')
+    .optional()
+    .isURL()
+    .withMessage('LinkedIn URL must be a valid URL'),
 
   body('portfolioUrl')
     .optional()
@@ -80,7 +93,28 @@ const validateGetByEmail = [
     .normalizeEmail(),
 ];
 
+/**
+ * validateSearch — Rules for GET /users/search query params
+ */
+const validateSearch = [
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('Limit must be between 1 and 50'),
+
+  query('academicYear')
+    .optional()
+    .isInt({ min: 1, max: 4 })
+    .withMessage('Academic year must be between 1 and 4'),
+];
+
 module.exports = {
   validateUpdateProfile,
   validateGetByEmail,
+  validateSearch,
 };

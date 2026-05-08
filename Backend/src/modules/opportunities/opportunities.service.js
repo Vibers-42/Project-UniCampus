@@ -1,5 +1,6 @@
 /** @file opportunities.service.js (scaffold) */
 const Opportunity = require('./opportunities.model');
+const AppError = require('../../shared/utils/AppError');
 
 const create = async (data, email) => Opportunity.create({ ...data, postedBy: email });
 const getAll = async (filters = {}) => {
@@ -10,21 +11,21 @@ const getAll = async (filters = {}) => {
 };
 const getById = async (id) => {
   const o = await Opportunity.findById(id);
-  if (!o) { const e = new Error('Opportunity not found'); e.statusCode = 404; throw e; }
+  if (!o) throw new AppError('Opportunity not found', 404);
   return o;
 };
 const apply = async (id, email) => {
   const o = await Opportunity.findById(id);
-  if (!o) { const e = new Error('Opportunity not found'); e.statusCode = 404; throw e; }
-  if (o.applicants.includes(email)) { const e = new Error('Already applied'); e.statusCode = 400; throw e; }
+  if (!o) throw new AppError('Opportunity not found', 404);
+  if (o.applicants.includes(email)) throw new AppError('Already applied', 400);
   o.applicants.push(email);
   await o.save();
   return o;
 };
 const remove = async (id, email) => {
   const o = await Opportunity.findById(id);
-  if (!o) { const e = new Error('Opportunity not found'); e.statusCode = 404; throw e; }
-  if (o.postedBy !== email) { const e = new Error('Not authorized'); e.statusCode = 403; throw e; }
+  if (!o) throw new AppError('Opportunity not found', 404);
+  if (o.postedBy !== email) throw new AppError('Not authorized', 403);
   await o.deleteOne();
   return { message: 'Opportunity deleted.' };
 };

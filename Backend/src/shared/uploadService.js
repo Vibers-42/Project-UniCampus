@@ -93,7 +93,36 @@ const deleteFile = async (publicId) => {
   }
 };
 
+/**
+ * Extract the Cloudinary public ID from a Cloudinary URL.
+ *
+ * WHY THIS EXISTS:
+ *   Models store Cloudinary URLs (e.g., avatarUrl, pdfUrl, bannerUrl).
+ *   When a record is deleted, the service needs to call deleteFile(publicId).
+ *   This helper extracts the public_id from the stored URL so every module
+ *   doesn't have to parse Cloudinary URLs independently.
+ *
+ * @param {string} cloudinaryUrl — A Cloudinary secure_url
+ * @returns {string|null} The public ID, or null if the URL can't be parsed
+ *
+ * @example
+ *   extractPublicId('https://res.cloudinary.com/demo/image/upload/v123/unicampus/avatars/abc.jpg')
+ *   // → 'unicampus/avatars/abc'
+ */
+const extractPublicId = (cloudinaryUrl) => {
+  if (!cloudinaryUrl) return null;
+
+  try {
+    // Cloudinary URLs follow: .../upload/v{version}/{public_id}.{ext}
+    const match = cloudinaryUrl.match(/\/upload\/(?:v\d+\/)?(.+)\.\w+$/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+};
+
 module.exports = {
   uploadFile,
   deleteFile,
+  extractPublicId,
 };

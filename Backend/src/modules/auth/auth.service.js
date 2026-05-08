@@ -18,6 +18,8 @@
  *     - auth.constants.js   (internal to auth/)
  *     - shared/utils/token.js
  *     - shared/utils/otp.js
+ *     - shared/utils/AppError.js
+ *     - shared/utils/logger.js
  *     - shared/notificationService.js
  *   It NEVER imports from any other module.
  *
@@ -38,6 +40,8 @@ const AuthModel = require('./auth.model');
 const { OTP_EXPIRY_MINUTES } = require('./auth.constants');
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../../shared/utils/token');
 const { generateOTP, hashOTP, verifyOTP: verifyOTPHash } = require('../../shared/utils/otp');
+const AppError = require('../../shared/utils/AppError');
+const logger = require('../../shared/utils/logger');
 const { sendEmailNotification } = require('../../shared/notificationService');
 
 // ──────────────────────────────────────────
@@ -55,7 +59,7 @@ const hashRefreshToken = (token) => {
 
 /**
  * Generate both access and refresh tokens for a user.
- * @param {Object} user — User document (needs _id and role)
+ * @param {Object} user — User document (needs _id, email, and role)
  * @returns {{ accessToken: string, refreshToken: string }}
  */
 const generateTokenPair = (user) => {
@@ -85,6 +89,26 @@ const buildOTPEmail = (otp) => {
   `;
 };
 
+/**
+ * Generate a new OTP, hash it, and send it via email.
+ * Reused by both register() and resendOTP() to avoid duplication.
+ *
+ * @param {Object} user — Mongoose user document to update
+ * @param {string} emailSubject — Email subject line
+ * @returns {Promise<void>}
+ */
+const generateAndSendOTP = async (user, emailSubject) => {
+  const otp = generateOTP();
+  const otpHash = await hashOTP(otp);
+
+  user.otp = otpHash;
+  user.otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+  await user.save();
+
+  await sendEmailNotification(user.email, emailSubject, buildOTPEmail(otp));
+  logger.debug(`OTP sent to ${user.email}`);
+};
+
 // ──────────────────────────────────────────
 // PUBLIC INTERFACE
 // ──────────────────────────────────────────
@@ -94,9 +118,8 @@ const buildOTPEmail = (otp) => {
  *
  * Flow:
  *   1. Check if email already exists → throw if it does
- *   2. Generate OTP and hash it
- *   3. Create user with hashed OTP and expiry
- *   4. Send OTP to user via email
+ *   2. Create user record
+ *   3. Generate OTP, hash it, save to user, send via email
  *
  * @param {string} email — User's institutional email
  * @param {string} [role='student'] — User role
@@ -106,29 +129,14 @@ const register = async (email, role = 'student') => {
   // 1. Check if email already exists
   const existingUser = await AuthModel.findOne({ email });
   if (existingUser) {
-    const err = new Error('An account with this email already exists.');
-    err.statusCode = 409;
-    throw err;
+    throw new AppError('An account with this email already exists.', 409);
   }
 
-  // 2. Generate OTP and hash it
-  const otp = generateOTP();
-  const otpHash = await hashOTP(otp);
+  // 2. Create user record
+  const user = await AuthModel.create({ email, role });
 
-  // 3. Create user with hashed OTP and expiry
-  await AuthModel.create({
-    email,
-    role,
-    otp: otpHash,
-    otpExpiry: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
-  });
-
-  // 4. Send OTP via email
-  await sendEmailNotification(
-    email,
-    'UniCampus — Verify Your Account',
-    buildOTPEmail(otp)
-  );
+  // 3. Generate OTP, save hash, and send email
+  await generateAndSendOTP(user, 'UniCampus — Verify Your Account');
 
   return { message: 'OTP sent to your email. Please verify to complete registration.' };
 };
@@ -152,42 +160,35 @@ const verifyOTPService = async (email, otp) => {
   const user = await AuthModel.findOne({ email }).select('+otp +otpExpiry');
 
   if (!user) {
-    const err = new Error('No account found with this email.');
-    err.statusCode = 404;
-    throw err;
+    throw new AppError('No account found with this email.', 404);
   }
 
-  // 2. Check OTP hash
+  // 2. Check OTP exists
   if (!user.otp) {
-    const err = new Error('No OTP was requested. Please register or resend OTP.');
-    err.statusCode = 400;
-    throw err;
+    throw new AppError('No OTP was requested. Please register or resend OTP.', 400);
   }
 
+  // 3. Verify OTP hash
   const isOTPValid = await verifyOTPHash(otp, user.otp);
   if (!isOTPValid) {
-    const err = new Error('Invalid OTP. Please check and try again.');
-    err.statusCode = 400;
-    throw err;
+    throw new AppError('Invalid OTP. Please check and try again.', 400);
   }
 
-  // Check expiry
+  // 4. Check expiry
   if (user.otpExpiry < new Date()) {
-    const err = new Error('OTP has expired. Please request a new one.');
-    err.statusCode = 400;
-    throw err;
+    throw new AppError('OTP has expired. Please request a new one.', 400);
   }
 
-  // 3. Mark verified, clear OTP fields
+  // 5. Mark verified, clear OTP fields
   user.isVerified = true;
   user.otp = undefined;
   user.otpExpiry = undefined;
   user.lastLogin = new Date();
 
-  // 4. Generate tokens
+  // 6. Generate tokens
   const { accessToken, refreshToken } = generateTokenPair(user);
 
-  // 5. Save hashed refresh token
+  // 7. Save hashed refresh token
   user.refreshToken = hashRefreshToken(refreshToken);
   await user.save();
 
@@ -207,8 +208,7 @@ const verifyOTPService = async (email, otp) => {
  *
  * Flow:
  *   1. Find user by email
- *   2. Generate new OTP, hash it, set new expiry
- *   3. Save and send via email
+ *   2. Generate new OTP, hash it, save to user, send via email
  *
  * USE CASE: Returning users who want to log in, or users whose OTP expired.
  *
@@ -219,26 +219,10 @@ const resendOTP = async (email) => {
   const user = await AuthModel.findOne({ email });
 
   if (!user) {
-    const err = new Error('No account found with this email. Please register first.');
-    err.statusCode = 404;
-    throw err;
+    throw new AppError('No account found with this email. Please register first.', 404);
   }
 
-  // Generate new OTP
-  const otp = generateOTP();
-  const otpHash = await hashOTP(otp);
-
-  // Update user with new OTP
-  user.otp = otpHash;
-  user.otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-  await user.save();
-
-  // Send via email
-  await sendEmailNotification(
-    email,
-    'UniCampus — Your New Verification Code',
-    buildOTPEmail(otp)
-  );
+  await generateAndSendOTP(user, 'UniCampus — Your New Verification Code');
 
   return { message: 'New OTP sent to your email.' };
 };
@@ -267,15 +251,11 @@ const refreshTokens = async (incomingRefreshToken) => {
   const user = await AuthModel.findById(decoded.id).select('+refreshToken');
 
   if (!user) {
-    const err = new Error('User not found. Please log in again.');
-    err.statusCode = 401;
-    throw err;
+    throw new AppError('User not found. Please log in again.', 401);
   }
 
   if (!user.refreshToken) {
-    const err = new Error('Session expired. Please log in again.');
-    err.statusCode = 401;
-    throw err;
+    throw new AppError('Session expired. Please log in again.', 401);
   }
 
   // 3. Compare incoming token hash with stored hash
@@ -285,9 +265,8 @@ const refreshTokens = async (incomingRefreshToken) => {
     user.refreshToken = undefined;
     await user.save();
 
-    const err = new Error('Token reuse detected. Please log in again.');
-    err.statusCode = 401;
-    throw err;
+    logger.warn(`Refresh token reuse detected for user ${user._id}`);
+    throw new AppError('Token reuse detected. Please log in again.', 401);
   }
 
   // 4. Generate new token pair

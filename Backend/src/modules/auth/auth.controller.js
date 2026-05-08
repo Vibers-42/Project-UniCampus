@@ -18,6 +18,7 @@
 
 const catchAsync = require('../../middleware/catchAsync');
 const { sendSuccess } = require('../../shared/responses/apiResponse');
+const AppError = require('../../shared/utils/AppError');
 const authService = require('./auth.service');
 const { REFRESH_TOKEN_COOKIE_NAME, COOKIE_OPTIONS } = require('./auth.constants');
 const env = require('../../config/env');
@@ -79,9 +80,7 @@ const refresh = catchAsync(async (req, res) => {
   const incomingRefreshToken = req.cookies[REFRESH_TOKEN_COOKIE_NAME];
 
   if (!incomingRefreshToken) {
-    const err = new Error('No refresh token provided. Please log in again.');
-    err.statusCode = 401;
-    throw err;
+    throw new AppError('No refresh token provided. Please log in again.', 401);
   }
 
   const result = await authService.refreshTokens(incomingRefreshToken);

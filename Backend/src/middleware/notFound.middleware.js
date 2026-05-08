@@ -20,10 +20,10 @@
  *   formatting in one place.
  */
 
+const AppError = require('../shared/utils/AppError');
+
 const notFoundHandler = (req, res, next) => {
-  const err = new Error(`Route not found: ${req.method} ${req.originalUrl}`);
-  err.statusCode = 404;
-  next(err);
+  next(new AppError(`Route not found: ${req.method} ${req.originalUrl}`, 404));
 };
 
 module.exports = notFoundHandler;

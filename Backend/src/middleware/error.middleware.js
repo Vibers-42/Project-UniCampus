@@ -16,10 +16,17 @@
  *   - Mongoose CastError (invalid ObjectId, etc.)
  *   - Mongoose duplicate key error (code 11000)
  *   - JWT errors (JsonWebTokenError, TokenExpiredError)
+ *   - JSON SyntaxError (malformed request body)
  *   - Unknown/unexpected errors (500 fallback)
  *
  * RESPONSE SHAPE (always):
- *   { success: false, message: string, statusCode: number }
+ *   {
+ *     success: false,
+ *     message: string,
+ *     statusCode: number,
+ *     errors?: [{ field, message }]   — present on validation failures
+ *     stack?: string                   — present only in development
+ *   }
  *
  * SECURITY:
  *   Stack traces are NEVER sent in production. Only in development.
@@ -30,12 +37,22 @@
  */
 
 const env = require('../config/env');
+const logger = require('../shared/utils/logger');
 
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
   // ── Default values ──
   err.statusCode = err.statusCode || 500;
   err.message = err.message || 'Internal Server Error';
+
+  // ── JSON SyntaxError ──
+  // Triggered when a client sends malformed JSON in the request body.
+  // Express's JSON parser throws a SyntaxError with a `status` property.
+  // Without this, malformed JSON falls through as a 500.
+  if (err.type === 'entity.parse.failed') {
+    err.statusCode = 400;
+    err.message = 'Invalid JSON in request body. Please check your request format.';
+  }
 
   // ── Mongoose: Validation Error ──
   // Triggered when a document fails schema validation (e.g. required field missing).
@@ -79,14 +96,20 @@ const errorHandler = (err, req, res, next) => {
     statusCode: err.statusCode,
   };
 
+  // Include field-level validation errors when present
+  // (set by validation.middleware.js — enables per-field form feedback on frontend)
+  if (err.validationErrors) {
+    response.errors = err.validationErrors;
+  }
+
   // Include stack trace only in development (never in production)
   if (env.NODE_ENV === 'development') {
     response.stack = err.stack;
   }
 
-  // Log unexpected errors (500s) for debugging
+  // Log unexpected errors (500s) for debugging — uses shared logger, not console
   if (err.statusCode === 500) {
-    console.error('[ERROR]', err);
+    logger.error(`Unhandled error: ${err.message}`, err.stack);
   }
 
   res.status(err.statusCode).json(response);

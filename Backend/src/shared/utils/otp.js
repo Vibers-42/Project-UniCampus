@@ -2,20 +2,20 @@
  * @file otp.js — OTP Generation & Verification Helpers
  *
  * SINGLE RESPONSIBILITY:
- *   Generates random 6-digit OTPs, hashes them with bcrypt for safe storage,
- *   and verifies user-submitted OTPs against stored hashes.
+ *   Generates cryptographically secure random 6-digit OTPs, hashes them
+ *   with bcrypt for safe storage, and verifies user-submitted OTPs against
+ *   stored hashes.
  *
  * EXPORTS:
- *   generateOTP()           — Returns a 6-digit numeric string
+ *   generateOTP()           — Returns a 6-digit numeric string (CSPRNG)
  *   hashOTP(otp)            — Returns a bcrypt hash of the OTP
  *   verifyOTP(otp, hash)    — Returns true if the OTP matches the hash
  *
- * SECURITY RULE:
- *   OTPs are NEVER stored in plain text in the database.
- *   The auth service calls generateOTP(), sends the plain OTP to the user
- *   via email, and stores ONLY the hash (from hashOTP) in the DB.
- *   On verification, the user submits the plain OTP, and verifyOTP
- *   compares it against the stored hash.
+ * SECURITY RULES:
+ *   - OTPs are NEVER stored in plain text in the database.
+ *   - OTPs are generated using crypto.randomInt (OS-level CSPRNG),
+ *     not Math.random (which is predictable).
+ *   - OTPs are hashed with bcrypt before DB storage.
  *
  * USAGE:
  *   const { generateOTP, hashOTP, verifyOTP } = require('../shared/utils/otp');
@@ -26,20 +26,21 @@
  *   const isValid = await verifyOTP('482931', hash);  // true
  */
 
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
 /** Salt rounds for OTP hashing (lower than passwords — OTPs are short-lived) */
 const OTP_SALT_ROUNDS = 8;
 
 /**
- * Generate a random 6-digit numeric OTP.
- * @returns {string} A 6-character numeric string (e.g., '048293')
+ * Generate a cryptographically secure random 6-digit numeric OTP.
+ * Uses crypto.randomInt (Node 18+ CSPRNG) — not Math.random.
+ * @returns {string} A 6-character numeric string (e.g., '482931')
  */
 const generateOTP = () => {
-  // crypto.randomInt would be more secure, but for a 6-digit code
-  // with bcrypt hashing and a short expiry window, Math.random is fine.
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  return otp;
+  // crypto.randomInt uses the OS CSPRNG — unpredictable, uniform distribution.
+  // Range: 100000–999999 (always exactly 6 digits).
+  return crypto.randomInt(100000, 1000000).toString();
 };
 
 /**

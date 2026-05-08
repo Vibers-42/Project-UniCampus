@@ -1,5 +1,6 @@
 /** @file matching.service.js (scaffold) */
 const MatchRequest = require('./matching.model');
+const AppError = require('../../shared/utils/AppError');
 
 const create = async (data, email) => MatchRequest.create({ ...data, requestedBy: email });
 const getAll = async (filters = {}) => {
@@ -9,21 +10,21 @@ const getAll = async (filters = {}) => {
 };
 const getById = async (id) => {
   const m = await MatchRequest.findById(id);
-  if (!m) { const e = new Error('Match request not found'); e.statusCode = 404; throw e; }
+  if (!m) throw new AppError('Match request not found', 404);
   return m;
 };
 const matchUser = async (id, email) => {
   const m = await MatchRequest.findById(id);
-  if (!m) { const e = new Error('Match request not found'); e.statusCode = 404; throw e; }
-  if (m.matches.some(x => x.email === email)) { const e = new Error('Already matched'); e.statusCode = 400; throw e; }
+  if (!m) throw new AppError('Match request not found', 404);
+  if (m.matches.some(x => x.email === email)) throw new AppError('Already matched', 400);
   m.matches.push({ email, status: 'pending' });
   await m.save();
   return m;
 };
 const close = async (id, email) => {
   const m = await MatchRequest.findById(id);
-  if (!m) { const e = new Error('Match request not found'); e.statusCode = 404; throw e; }
-  if (m.requestedBy !== email) { const e = new Error('Not authorized'); e.statusCode = 403; throw e; }
+  if (!m) throw new AppError('Match request not found', 404);
+  if (m.requestedBy !== email) throw new AppError('Not authorized', 403);
   m.status = 'closed';
   await m.save();
   return m;

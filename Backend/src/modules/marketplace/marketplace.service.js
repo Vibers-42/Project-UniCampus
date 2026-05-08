@@ -1,5 +1,6 @@
 /** @file marketplace.service.js (scaffold) */
 const Listing = require('./marketplace.model');
+const AppError = require('../../shared/utils/AppError');
 
 const create = async (data, email) => Listing.create({ ...data, seller: email });
 const getAll = async (filters = {}) => {
@@ -10,13 +11,13 @@ const getAll = async (filters = {}) => {
 };
 const getById = async (id) => {
   const l = await Listing.findById(id);
-  if (!l) { const e = new Error('Listing not found'); e.statusCode = 404; throw e; }
+  if (!l) throw new AppError('Listing not found', 404);
   return l;
 };
 const markSold = async (id, email, buyerEmail) => {
   const l = await Listing.findById(id);
-  if (!l) { const e = new Error('Listing not found'); e.statusCode = 404; throw e; }
-  if (l.seller !== email) { const e = new Error('Not authorized'); e.statusCode = 403; throw e; }
+  if (!l) throw new AppError('Listing not found', 404);
+  if (l.seller !== email) throw new AppError('Not authorized', 403);
   l.status = 'sold';
   l.buyerEmail = buyerEmail || '';
   await l.save();
@@ -24,8 +25,8 @@ const markSold = async (id, email, buyerEmail) => {
 };
 const remove = async (id, email) => {
   const l = await Listing.findById(id);
-  if (!l) { const e = new Error('Listing not found'); e.statusCode = 404; throw e; }
-  if (l.seller !== email) { const e = new Error('Not authorized'); e.statusCode = 403; throw e; }
+  if (!l) throw new AppError('Listing not found', 404);
+  if (l.seller !== email) throw new AppError('Not authorized', 403);
   await l.deleteOne();
   return { message: 'Listing deleted.' };
 };

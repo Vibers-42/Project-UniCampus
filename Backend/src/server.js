@@ -36,7 +36,7 @@ const startServer = async () => {
       logger.info(
         `Server running in ${env.NODE_ENV} mode on port ${env.PORT}`
       );
-      logger.info(`Health check: http://localhost:${env.PORT}/api/v1/health`);
+      logger.info(`Health check: http://localhost:${env.PORT}/api/health`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

@@ -23,7 +23,7 @@
 
 const { Router } = require('express');
 const controller = require('./auth.controller');
-const { validateRegister, validateVerifyOTP, validateResendOTP } = require('./auth.validation');
+const { validateRegister, validateVerifyOTP, validateResendOTP, validateRefresh } = require('./auth.validation');
 const validate = require('../../middleware/validation.middleware');
 const { authLimiter } = require('../../middleware/rateLimit.middleware');
 const { protect } = require('../../middleware/auth.middleware');
@@ -41,7 +41,7 @@ router.post('/verify-otp', validateVerifyOTP, validate, controller.verifyOTP);
 
 router.post('/resend-otp', validateResendOTP, validate, controller.resendOTP);
 
-router.post('/refresh', controller.refresh);
+router.post('/refresh', validateRefresh, validate, controller.refresh);
 
 router.post('/logout', protect, controller.logout);
 

@@ -1,8 +1,18 @@
 /**
  * @file users.controller.js — User Profile Request Handlers
  *
- * SCOPE: Internal to users/ — only users.routes.js imports this.
- * Thin layer: parses req → calls service → sends response.
+ * SINGLE RESPONSIBILITY:
+ *   Thin layer between routes and users.service.js.
+ *   Each function: parses req → calls service → sends response.
+ *   No business logic. No direct DB calls.
+ *
+ * SCOPE:
+ *   Internal to users/ — only users.routes.js imports this.
+ *
+ * PATTERNS:
+ *   - Every function wrapped in catchAsync (no try/catch)
+ *   - Every response uses sendSuccess (no raw res.json)
+ *   - searchUsers() returns pagination metadata alongside items
  */
 
 const catchAsync = require('../../middleware/catchAsync');
@@ -33,26 +43,20 @@ const updateProfile = catchAsync(async (req, res) => {
 });
 
 /**
- * GET /users/search — Search users by filters
- * Query params: department, skills (comma-separated), academicYear
+ * GET /users/search — Search users by filters with pagination
+ * Query params: department, skills (comma-separated), academicYear, college, search, page, limit
  */
 const searchUsers = catchAsync(async (req, res) => {
-  const users = await usersService.searchUsers(req.query);
-  sendSuccess(res, users, `Found ${users.length} users.`);
+  const { items, pagination } = await usersService.searchUsers(req.query);
+  sendSuccess(res, { items, pagination }, `Found ${pagination.totalCount} users.`);
 });
 
 /**
  * GET /users/:email — View any user's public profile
+ * Throws 404 if not found (handled by service layer via AppError).
  */
 const getByEmail = catchAsync(async (req, res) => {
-  const profile = await usersService.getProfile(req.params.email);
-
-  if (!profile) {
-    const err = new Error('User profile not found.');
-    err.statusCode = 404;
-    throw err;
-  }
-
+  const profile = await usersService.getPublicProfile(req.params.email);
   sendSuccess(res, profile, 'User profile fetched.');
 });
 

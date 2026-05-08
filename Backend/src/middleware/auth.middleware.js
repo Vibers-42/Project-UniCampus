@@ -25,12 +25,22 @@
  *   It NEVER sends a response directly (res.json/res.status). All response
  *   formatting is handled by error.middleware.js.
  *
+ * req.user CONTRACT:
+ *   After protect runs successfully, req.user is guaranteed to contain
+ *   the decoded JWT payload. At minimum:
+ *     req.user.id    — MongoDB _id of the authenticated user
+ *     req.user.email — User's email address
+ *     req.user.role  — 'student' | 'clubAdmin' | 'admin'
+ *     req.user.iat   — Token issued-at timestamp
+ *     req.user.exp   — Token expiry timestamp
+ *
  * USAGE:
  *   router.get('/profile', protect, getProfile);
  *   router.delete('/users/:id', protect, restrictTo('admin'), deleteUser);
  */
 
 const { verifyAccessToken } = require('../shared/utils/token');
+const AppError = require('../shared/utils/AppError');
 
 /**
  * protect — Verify JWT access token from Authorization header.
@@ -38,7 +48,7 @@ const { verifyAccessToken } = require('../shared/utils/token');
  * Expected header: Authorization: Bearer <token>
  *
  * On success: attaches decoded token payload to req.user
- *             (typically contains { id, role, iat, exp })
+ *             (typically contains { id, email, role, iat, exp })
  * On failure: passes error to error.middleware via next(err)
  */
 const protect = (req, res, next) => {
@@ -46,29 +56,33 @@ const protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    const err = new Error('Access denied. No token provided.');
-    err.statusCode = 401;
-    return next(err);
+    return next(new AppError('Access denied. No token provided.', 401));
   }
 
   const token = authHeader.split(' ')[1];
 
   if (!token) {
-    const err = new Error('Access denied. Token is malformed.');
-    err.statusCode = 401;
-    return next(err);
+    return next(new AppError('Access denied. Token is malformed.', 401));
   }
 
-  // 2. Verify token (throws JsonWebTokenError or TokenExpiredError on failure,
-  //    which error.middleware.js knows how to handle)
-  const decoded = verifyAccessToken(token);
+  // 2. Verify token
+  //    Wrapped in try/catch to handle JWT verification failures explicitly.
+  //    Without this, JsonWebTokenError/TokenExpiredError would propagate
+  //    as uncaught exceptions — they'd still reach error.middleware.js,
+  //    but the error path would be unintentional rather than deliberate.
+  try {
+    const decoded = verifyAccessToken(token);
 
-  // 3. Attach decoded payload to request
-  // The payload typically contains { id, role } — set during login.
-  // Controllers/services can access req.user.id, req.user.role, etc.
-  req.user = decoded;
+    // 3. Attach decoded payload to request
+    // Controllers/services can access req.user.id, req.user.email, req.user.role
+    req.user = decoded;
 
-  next();
+    next();
+  } catch (err) {
+    // Let error.middleware.js handle JWT-specific error formatting
+    // (JsonWebTokenError → 401, TokenExpiredError → 401)
+    return next(err);
+  }
 };
 
 /**
@@ -76,6 +90,9 @@ const protect = (req, res, next) => {
  *
  * Returns a middleware that checks if req.user.role is in the allowed list.
  * Must be used AFTER protect (req.user must exist).
+ *
+ * Supports any number of roles — future roles (e.g., 'moderator', 'faculty')
+ * can be added without modifying this middleware.
  *
  * @param  {...string} roles — Allowed roles (e.g., 'admin', 'clubAdmin')
  * @returns {Function} Express middleware
@@ -88,17 +105,16 @@ const restrictTo = (...roles) => {
   return (req, res, next) => {
     // protect must run first — if req.user is missing, something is wrong
     if (!req.user) {
-      const err = new Error('Authentication required. Please log in.');
-      err.statusCode = 401;
-      return next(err);
+      return next(new AppError('Authentication required. Please log in.', 401));
     }
 
     if (!roles.includes(req.user.role)) {
-      const err = new Error(
-        `Access denied. Role "${req.user.role}" is not authorized for this action.`
+      return next(
+        new AppError(
+          `Access denied. Role "${req.user.role}" is not authorized for this action.`,
+          403
+        )
       );
-      err.statusCode = 403;
-      return next(err);
     }
 
     next();

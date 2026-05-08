@@ -2,26 +2,32 @@
  * @file users.service.js — User Profile Business Logic
  *
  * SINGLE RESPONSIBILITY:
- *   All profile-related business logic. No req/res objects.
+ *   All profile-related business logic. No req/res objects — pure logic.
  *
  * PUBLIC INTERFACE:
  *   getProfile(email)                    → profile document or null
+ *   getPublicProfile(email)             → profile (throws 404 if not found)
  *   updateProfile(email, updateData)     → updated profile
  *   uploadAvatar(email, cloudinaryUrl)   → updated profile (URL only, never binary)
- *   searchUsers(filters)                 → array of matching profiles
+ *   searchUsers(filters)                 → { items, pagination }
  *
  * SCOPE:
  *   Public — may be called by other module services if needed.
+ *   This is one of only two files importable outside users/ (along with routes).
  *
- * LINKING:
+ * IDENTITY CONTRACT:
  *   Uses email as the key to find/create profiles. The email comes
  *   from the JWT payload (set by auth module during login).
+ *   Other modules can call getProfile(email) or getPublicProfile(email)
+ *   to resolve user identity without importing the model directly.
  */
 
 const UsersModel = require('./users.model');
+const AppError = require('../../shared/utils/AppError');
+const { parsePagination, buildPaginationResult } = require('../../shared/utils/pagination');
 
 /**
- * Get a user's profile by email.
+ * Get a user's own profile by email.
  * If no profile exists yet, returns null (profile is created on first update).
  *
  * @param {string} email — User's email
@@ -29,6 +35,22 @@ const UsersModel = require('./users.model');
  */
 const getProfile = async (email) => {
   return UsersModel.findOne({ email });
+};
+
+/**
+ * Get a user's public profile by email.
+ * Throws 404 if not found (used for viewing other users' profiles).
+ *
+ * @param {string} email — Target user's email
+ * @returns {Promise<Object>} Profile document
+ * @throws {AppError} 404 if profile not found
+ */
+const getPublicProfile = async (email) => {
+  const profile = await UsersModel.findOne({ email });
+  if (!profile) {
+    throw new AppError('User profile not found.', 404);
+  }
+  return profile;
 };
 
 /**
@@ -51,7 +73,8 @@ const updateProfile = async (email, updateData) => {
   // Whitelist — only these fields can be updated by the user
   const allowed = [
     'name', 'department', 'academicYear', 'semester',
-    'skills', 'bio', 'avatarUrl', 'githubUrl', 'portfolioUrl', 'college',
+    'skills', 'bio', 'avatarUrl', 'githubUrl', 'linkedinUrl',
+    'portfolioUrl', 'college',
   ];
 
   const sanitized = {};
@@ -61,7 +84,13 @@ const updateProfile = async (email, updateData) => {
     }
   }
 
-  // Check if profile should be marked as complete
+  // Normalize skills to lowercase for consistent matching
+  // (same pattern as tags in resources and events modules)
+  if (sanitized.skills && Array.isArray(sanitized.skills)) {
+    sanitized.skills = sanitized.skills.map((s) => s.trim().toLowerCase());
+  }
+
+  // Upsert: create if not exists, update if exists
   const profile = await UsersModel.findOneAndUpdate(
     { email },
     { $set: { ...sanitized, email } },
@@ -99,13 +128,18 @@ const uploadAvatar = async (email, cloudinaryUrl) => {
 };
 
 /**
- * Search users by filters.
+ * Search users with filtering and pagination.
  *
- * @param {Object} filters — Search criteria
- * @param {string} [filters.department] — Filter by department
- * @param {string} [filters.skills] — Comma-separated skills to match
- * @param {number} [filters.academicYear] — Filter by academic year
- * @returns {Promise<Array>} Matching profiles
+ * Supported filters:
+ *   ?department=CS              — Filter by department (partial, case-insensitive)
+ *   ?skills=react,node          — Filter by skills (comma-separated, any match)
+ *   ?academicYear=3             — Filter by academic year
+ *   ?college=MIT                — Filter by college (partial, case-insensitive)
+ *   ?search=john                — Full-text search across name, skills, department
+ *   ?page=1&limit=20            — Pagination
+ *
+ * @param {Object} filters — Query params
+ * @returns {Promise<{ items: Array, pagination: Object }>}
  */
 const searchUsers = async (filters = {}) => {
   const query = {};
@@ -124,14 +158,34 @@ const searchUsers = async (filters = {}) => {
     query.academicYear = Number(filters.academicYear);
   }
 
-  return UsersModel.find(query)
-    .select('name email department academicYear skills bio avatarUrl college')
-    .sort({ name: 1 })
-    .limit(50);
+  if (filters.college) {
+    query.college = new RegExp(filters.college, 'i');
+  }
+
+  if (filters.search) {
+    query.$text = { $search: filters.search };
+  }
+
+  const { page, limit, skip } = parsePagination(filters);
+
+  const [items, totalCount] = await Promise.all([
+    UsersModel.find(query)
+      .select('name email department academicYear skills bio avatarUrl college isProfileComplete')
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit),
+    UsersModel.countDocuments(query),
+  ]);
+
+  return {
+    items,
+    pagination: buildPaginationResult(page, limit, totalCount),
+  };
 };
 
 module.exports = {
   getProfile,
+  getPublicProfile,
   updateProfile,
   uploadAvatar,
   searchUsers,
