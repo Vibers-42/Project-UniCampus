@@ -32,6 +32,21 @@ const config = Object.freeze({
   // ───── JWT (placeholder — will be used after auth module is built) ─────
   JWT_SECRET: process.env.JWT_SECRET || '',
   JWT_EXPIRY: process.env.JWT_EXPIRY || '7d',
+
+  // ───── Cloudinary ─────
+  // ARCHITECTURE:
+  //   Backend handles JSON + business logic only.
+  //   Binary files upload directly from frontend → Cloudinary (unsigned preset).
+  //   MongoDB stores only metadata + Cloudinary URLs — never binary data.
+  //
+  // These credentials are available server-side for:
+  //   - Generating signed URLs / deletion tokens
+  //   - Admin operations (e.g., deleting orphaned images)
+  //   - Future signed-upload support if needed
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '',
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || '',
+  CLOUDINARY_UPLOAD_PRESET: process.env.CLOUDINARY_UPLOAD_PRESET || '',
 });
 
 module.exports = config;

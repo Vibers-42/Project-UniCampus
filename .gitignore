@@ -1,0 +1,26 @@
+# ──────────────────────────────────────────
+# UniCampus — Root .gitignore
+# ──────────────────────────────────────────
+# Each sub-project (Backend/, Frontend/) has its own .gitignore.
+# This root file catches anything at the monorepo level.
+# ──────────────────────────────────────────
+
+# ── Dependencies ──
+node_modules/
+
+# ── Environment Variables ──
+.env
+.env.local
+.env.*.local
+
+# ── OS Junk ──
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor / IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
