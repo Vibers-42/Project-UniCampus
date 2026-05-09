@@ -1,6 +1,6 @@
 # UniCampus Backend — Architecture Reference
 
-> Modular Monolith · Node.js + Express + MongoDB · CommonJS
+> Modular Monolith · Node.js + Express + MongoDB · Firebase Auth · CommonJS
 
 ---
 
@@ -21,12 +21,13 @@ backend/
     │   ├── env.js              # THE ONLY file that reads process.env
     │   ├── db.js               # MongoDB connection via Mongoose
     │   ├── cloudinary.js       # Cloudinary SDK configuration
+    │   ├── firebase.js         # Firebase Admin SDK — verifyToken(), getFirebaseUser()
     │   └── index.js            # Re-exports all config from one place
     │
     ├── middleware/
-    │   ├── auth.middleware.js   # protect (JWT verify), restrictTo (role check)
+    │   ├── auth.middleware.js   # protect (Firebase token verify), restrictTo (role check)
     │   ├── catchAsync.js       # Wraps async controllers — no try/catch needed
-    │   ├── error.middleware.js  # Centralized error handler (Mongoose, JWT, etc.)
+    │   ├── error.middleware.js  # Centralized error handler (Mongoose, Firebase, etc.)
     │   ├── notFound.middleware.js # 404 catcher
     │   ├── rateLimit.middleware.js # generalLimiter (100/15m), authLimiter (10/15m)
     │   └── validation.middleware.js # express-validator result checker
@@ -35,10 +36,12 @@ backend/
     │   ├── responses/
     │   │   └── apiResponse.js  # sendSuccess(), sendError()
     │   ├── utils/
-    │   │   ├── hash.js         # hashPassword(), comparePassword()
+    │   │   ├── AppError.js     # Custom error class with statusCode
+    │   │   ├── hash.js         # hashPassword(), comparePassword() [reserved]
     │   │   ├── logger.js       # Console logger with timestamps
-    │   │   ├── otp.js          # generateOTP(), hashOTP(), verifyOTP()
-    │   │   └── token.js        # JWT generate/verify (access + refresh)
+    │   │   ├── otp.js          # generateOTP(), hashOTP(), verifyOTP() [reserved]
+    │   │   ├── pagination.js   # parsePagination(), buildPaginationResult()
+    │   │   └── token.js        # JWT generate/verify [reserved for future use]
     │   ├── aiService.js        # LLM wrapper (Claude, Gemini)
     │   ├── notificationService.js # Email + in-app notifications
     │   └── uploadService.js    # Cloudinary upload/delete
@@ -47,17 +50,15 @@ backend/
     │   └── index.js            # Mounts all module routes under /api/v1
     │
     └── modules/
-        ├── auth/               # Authentication (OTP, JWT, refresh tokens)
-        │   ├── auth.constants.js
-        │   ├── auth.controller.js
-        │   ├── auth.model.js
+        ├── auth/               # Firebase auth orchestration (NO model)
+        │   ├── auth.controller.js # login, me
         │   ├── auth.routes.js     ← only public file
         │   ├── auth.service.js    ← only public file
         │   └── auth.validation.js
         │
-        ├── users/              # User profiles
+        ├── users/              # Unified User model + profiles
         │   ├── users.controller.js
-        │   ├── users.model.js
+        │   ├── users.model.js     ← THE ONLY user-related model
         │   ├── users.routes.js    ← only public file
         │   ├── users.service.js   ← only public file
         │   └── users.validation.js
@@ -75,7 +76,62 @@ backend/
 
 ---
 
-## 2. Module Isolation Rules
+## 2. Authentication Architecture
+
+### Firebase (External Identity Provider)
+
+Firebase handles:
+- Email/password signup and login
+- Email verification
+- Password reset
+- Session persistence (client-side)
+- Token refresh (automatic, client-side)
+
+### Backend (Authorization + Business Logic)
+
+Backend handles:
+- Firebase ID token verification (via Firebase Admin SDK)
+- MongoDB user record sync (find-or-create on first login)
+- Role-based authorization
+- Domain enforcement (@adityauniversity.in only)
+- Business logic for all modules
+
+### Auth Flow
+
+```
+Frontend                           Backend
+   │                                  │
+   ├─ Firebase signup/login           │
+   ├─ Firebase email verification     │
+   ├─ Get Firebase ID token           │
+   │                                  │
+   ├─ POST /auth/login ──────────────▶│─ verifyFirebaseToken middleware
+   │   (Bearer token in header)       │─ Verify token via Firebase Admin SDK
+   │                                  │─ Find or create MongoDB user
+   │                                  │─ Return { user, isProfileComplete }
+   │◀─────────────────────────────────┤
+   │                                  │
+   ├─ GET /auth/me ──────────────────▶│─ protect middleware
+   │   (Bearer token in header)       │─ Verify token + lookup MongoDB user
+   │                                  │─ Return full user profile
+   │◀─────────────────────────────────┤
+```
+
+### req.user Contract
+
+After `protect` middleware, `req.user` is guaranteed to contain:
+
+```js
+req.user.id    // MongoDB _id — used for internal relationships
+req.user.email // User's email — used for cross-module identity
+req.user.role  // 'student' | 'clubAdmin' | 'admin'
+```
+
+All modules depend on this contract. No module references `firebaseUid` directly.
+
+---
+
+## 3. Module Isolation Rules
 
 ### What CAN be imported outside a module
 | File | Who can import it |
@@ -89,14 +145,14 @@ backend/
 | `<module>.controller.js` | Only routes.js calls it |
 | `<module>.model.js` | Only the module's own service uses it |
 | `<module>.validation.js` | Only routes.js uses it |
-| `<module>.constants.js` | Internal to the module |
 
-### Special case: Admin module
-Admin is the only module that cross-imports models from other modules (auth, resources, events). This is documented and justified because admin performs platform-wide operations that span module boundaries.
+### Special cases
+- **Admin module**: Cross-imports models from users, resources, and events. This is documented and justified because admin performs platform-wide operations that span module boundaries.
+- **Auth module**: Imports `users.service.js` (cross-module service call). This is allowed by the architecture rules — auth has no model of its own and needs to find/create user records.
 
 ---
 
-## 3. Request Flow
+## 4. Request Flow
 
 ```
 Client Request
@@ -117,7 +173,7 @@ routes/index.js → module.routes.js
 validation.middleware.js  (checks results)
     │
     ▼
-[protect]  (JWT verify → req.user)
+[protect]  (Firebase token verify → req.user)
     │
     ▼
 [restrictTo('admin')]  (role check, optional)
@@ -137,11 +193,11 @@ catchAsync catches errors → error.middleware.js → JSON response
 
 ---
 
-## 4. How to Add a New Module
+## 5. How to Add a New Module
 
 1. **Create the folder**: `src/modules/<name>/`
 
-2. **Create 5 files** following the naming convention:
+2. **Create files** following the naming convention:
    ```
    <name>.model.js       — Mongoose schema (timestamps: true)
    <name>.service.js      — Business logic (no req/res)
@@ -169,46 +225,21 @@ catchAsync catches errors → error.middleware.js → JSON response
 
 ---
 
-## 5. How to Swap Auth Strategy
+## 6. Unified User Model
 
-**Current:** OTP-based (passwordless)
+There is exactly ONE user model in the entire codebase: `users/users.model.js`.
 
-**To switch to password-based:**
+It stores:
+- **Auth mapping**: `firebaseUid` (unique, indexed — auth use only)
+- **Core identity**: `email` (unique), `role`
+- **Profile data**: name, department, skills, bio, social links, avatar URL
+- **Status**: `isProfileComplete`, `lastLogin`
 
-1. Add `password` field to `auth.model.js` (select: false)
-2. Rewrite `auth.service.js`:
-   - `register()` → hash password instead of OTP
-   - Add `login(email, password)` → compare hash, issue tokens
-   - Remove OTP-specific functions (or keep both)
-3. Update `auth.validation.js` with password rules
-4. Update `auth.routes.js` with new route
-
-**Nothing else changes.** No middleware, no shared files, no other modules.
+Firebase handles all credential storage. MongoDB stores zero passwords, zero OTPs, zero refresh tokens.
 
 ---
 
-## 6. How to Swap LLM Provider
-
-1. Open `.env`
-2. Change `LLM_PROVIDER=claude` → `LLM_PROVIDER=gemini` (or vice versa)
-3. Set the correct `LLM_API_KEY`
-4. Restart server
-
-**That's it.** `aiService.js` routes to the correct provider internally.
-
----
-
-## 7. How to Swap File Storage
-
-1. Open `shared/uploadService.js`
-2. Replace Cloudinary SDK calls with your new provider (S3, Azure Blob, etc.)
-3. Keep the same export interface: `uploadFile(buffer, folder, type)`, `deleteFile(id)`
-
-**No module code changes.** Only `uploadService.js` and `config/cloudinary.js`.
-
----
-
-## 8. Environment Variables
+## 7. Environment Variables
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
@@ -216,14 +247,17 @@ catchAsync catches errors → error.middleware.js → JSON response
 | `NODE_ENV` | No | development | Environment mode |
 | `MONGODB_URI` | **Yes** | — | MongoDB Atlas connection string |
 | `CLIENT_URL` | No | http://localhost:5173 | CORS allowed origin |
-| `JWT_ACCESS_SECRET` | **Yes** | — | Access token signing secret |
-| `JWT_REFRESH_SECRET` | **Yes** | — | Refresh token signing secret |
-| `JWT_ACCESS_EXPIRES` | No | 15m | Access token TTL |
-| `JWT_REFRESH_EXPIRES` | No | 7d | Refresh token TTL |
+| `JWT_ACCESS_SECRET` | No | — | Reserved for future internal JWT needs |
+| `JWT_REFRESH_SECRET` | No | — | Reserved for future internal JWT needs |
+| `JWT_ACCESS_EXPIRES` | No | 15m | Reserved |
+| `JWT_REFRESH_EXPIRES` | No | 7d | Reserved |
 | `CLOUDINARY_CLOUD_NAME` | No | — | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | No | — | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | No | — | Cloudinary API secret |
-| `EMAIL_HOST` | No | — | SMTP host for OTP delivery |
+| `FIREBASE_PROJECT_ID` | **Yes** | — | Firebase Admin SDK project ID |
+| `FIREBASE_CLIENT_EMAIL` | **Yes** | — | Firebase Admin SDK service account email |
+| `FIREBASE_PRIVATE_KEY` | **Yes** | — | Firebase Admin SDK private key |
+| `EMAIL_HOST` | No | — | SMTP host for notifications |
 | `EMAIL_PORT` | No | 587 | SMTP port |
 | `EMAIL_USER` | No | — | SMTP username |
 | `EMAIL_PASS` | No | — | SMTP password |
@@ -232,7 +266,7 @@ catchAsync catches errors → error.middleware.js → JSON response
 
 ---
 
-## 9. API Response Shape
+## 8. API Response Shape
 
 ### Success
 ```json
@@ -257,15 +291,15 @@ Stack traces are included in `development` mode only, never in production.
 
 ---
 
-## 10. Naming Conventions
+## 9. Naming Conventions
 
 | Item | Convention | Example |
 |------|-----------|---------|
 | Files | camelCase with dot separator | `auth.service.js` |
 | Folders (modules) | camelCase | `aiChatbot/`, `studyGroups/` |
 | Routes | kebab-case | `/api/v1/study-groups`, `/api/v1/ai-chatbot` |
-| Models | PascalCase (Mongoose) | `AuthModel`, `UsersModel` |
+| Models | PascalCase (Mongoose) | `User` |
 | Functions | camelCase | `getProfile`, `sendSuccess` |
-| Constants | UPPER_SNAKE_CASE | `OTP_EXPIRY_MINUTES` |
-| Env vars | UPPER_SNAKE_CASE | `JWT_ACCESS_SECRET` |
+| Constants | UPPER_SNAKE_CASE | `ALLOWED_DOMAIN` |
+| Env vars | UPPER_SNAKE_CASE | `FIREBASE_PROJECT_ID` |
 | DB collections | Mongoose default (lowercase plural) | `users`, `events` |

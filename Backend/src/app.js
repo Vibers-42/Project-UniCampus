@@ -29,6 +29,11 @@ const { generalLimiter } = require('./middleware/rateLimit.middleware');
 
 const app = express();
 
+// Trust proxy — required when running behind reverse proxies (Render, Railway,
+// Vercel, AWS ALB, Nginx, etc.). Ensures express-rate-limit reads the correct
+// client IP from X-Forwarded-For instead of always seeing the proxy's IP.
+app.set('trust proxy', 1);
+
 // ──────────────────────────────────────────
 // 1. PARSING MIDDLEWARE
 // ──────────────────────────────────────────
@@ -40,7 +45,7 @@ app.use(express.json({ limit: '16kb' }));
 // Parse URL-encoded form data (extended: true allows nested objects)
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 
-// Parse cookies (needed for httpOnly refresh token cookie)
+// Parse cookies (available for future use — session tokens, preferences, etc.)
 app.use(cookieParser());
 
 // ──────────────────────────────────────────

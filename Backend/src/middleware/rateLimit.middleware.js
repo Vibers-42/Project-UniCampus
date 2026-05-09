@@ -8,9 +8,12 @@
  * EXPORTS:
  *   generalLimiter — 100 requests per 15-minute window per IP.
  *                    Applied globally to all /api/ routes in app.js.
- *   authLimiter    — 10 requests per 15-minute window per IP.
- *                    Applied only to auth routes (login, register, OTP).
+ *   authLimiter    — 20 requests per 15-minute window per IP.
+ *                    Applied to auth routes (login, register).
  *                    Prevents brute-force credential attacks.
+ *   profileLimiter — 30 requests per 15-minute window per IP.
+ *                    Applied to profile update routes.
+ *                    Prevents rapid profile update abuse.
  *
  * USAGE:
  *   // In app.js (global):
@@ -19,7 +22,11 @@
  *
  *   // In auth routes (per-route):
  *   const { authLimiter } = require('../middleware/rateLimit.middleware');
- *   router.post('/login', authLimiter, validate, authController.login);
+ *   router.use(authLimiter);
+ *
+ *   // In users routes (per-route):
+ *   const { profileLimiter } = require('../middleware/rateLimit.middleware');
+ *   router.patch('/profile', profileLimiter, validate, controller.updateProfile);
  */
 
 const rateLimit = require('express-rate-limit');
@@ -41,12 +48,12 @@ const generalLimiter = rateLimit({
 });
 
 /**
- * Auth rate limiter — 10 requests per 15 minutes per IP.
- * Strict limit for authentication endpoints to prevent brute-force.
+ * Auth rate limiter — 20 requests per 15 minutes per IP.
+ * Stricter limit for authentication endpoints to prevent brute-force.
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 20,
   message: {
     success: false,
     message: 'Too many authentication attempts. Please try again after 15 minutes.',
@@ -56,7 +63,41 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * Profile rate limiter — 30 requests per 15 minutes per IP.
+ * Prevents rapid profile update abuse (e.g., avatar spam, bio flooding).
+ */
+const profileLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30,
+  message: {
+    success: false,
+    message: 'Too many profile update requests. Please try again after 15 minutes.',
+    statusCode: 429,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Resend verification rate limiter — 3 requests per 15 minutes per IP.
+ * Very strict to prevent email flooding abuse.
+ */
+const resendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3,
+  message: {
+    success: false,
+    message: 'Too many resend requests. Please try again after 15 minutes.',
+    statusCode: 429,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   generalLimiter,
   authLimiter,
+  profileLimiter,
+  resendLimiter,
 };

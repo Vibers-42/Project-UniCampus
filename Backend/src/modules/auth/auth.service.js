@@ -1,299 +1,194 @@
 /**
- * @file auth.service.js — Auth Business Logic
+ * @file auth.service.js — Auth Sync Business Logic
  *
  * SINGLE RESPONSIBILITY:
- *   ALL authentication business logic lives here. Registration, OTP verification,
- *   token generation, token refresh, and logout. No req/res objects — pure logic.
+ *   Orchestrates Firebase identity synchronization with MongoDB user records.
+ *   No req/res objects — pure logic.
  *
  * PUBLIC INTERFACE:
- *   register(email, role)         → { message }
- *   verifyOTP(email, otp)         → { accessToken, refreshToken, user }
- *   resendOTP(email)              → { message }
- *   refreshTokens(refreshToken)   → { accessToken, refreshToken }
- *   logout(userId)                → { message }
+ *   syncUser(firebaseUid, email, metadata)  → { user, isNewUser }
+ *   getCurrentUser(userId)                  → { user }
+ *
+ * WHAT FIREBASE HANDLES (NOT this service):
+ *   - Email/password signup (createUserWithEmailAndPassword)
+ *   - Email verification (sendEmailVerification)
+ *   - Password reset (sendPasswordResetEmail)
+ *   - Session persistence (onAuthStateChanged)
+ *   - Token refresh (automatic, client-side)
+ *
+ * WHAT THIS SERVICE HANDLES:
+ *   - Syncing Firebase identity → MongoDB user record
+ *   - Creating new MongoDB records on first sync (with metadata)
+ *   - Returning existing records on subsequent syncs (idempotent)
+ *   - Updating lastLogin timestamp
+ *   - Domain enforcement (@adityauniversity.in)
+ *   - Returning user + onboarding state to the controller
+ *
+ * IDEMPOTENCY GUARANTEE:
+ *   POST /auth/sync is fully idempotent. Multiple identical requests:
+ *     - Never create duplicate users
+ *     - Safely return the same user record
+ *     - Handle race conditions via MongoDB unique constraints + retry
  *
  * DEPENDENCY RULES:
  *   This service imports ONLY:
- *     - auth.model.js      (internal to auth/)
- *     - auth.constants.js   (internal to auth/)
- *     - shared/utils/token.js
- *     - shared/utils/otp.js
+ *     - users.service.js (cross-module, allowed by architecture rules)
  *     - shared/utils/AppError.js
  *     - shared/utils/logger.js
- *     - shared/notificationService.js
- *   It NEVER imports from any other module.
- *
- * STRATEGY ISOLATION:
- *   Currently OTP-based. To switch to password-based:
- *   1. Add password field to auth.model.js
- *   2. Rewrite register/login logic in THIS file
- *   3. Nothing outside auth/ changes
- *
- * REFRESH TOKEN STORAGE:
- *   Refresh tokens are hashed with SHA-256 before saving to DB.
- *   Why SHA-256 and not bcrypt? JWTs are >200 chars; bcrypt silently
- *   truncates at 72 bytes. SHA-256 has no length limit.
+ *   It NEVER imports any model directly.
+ *   It NEVER imports from any other business module.
  */
 
-const crypto = require('crypto');
-const AuthModel = require('./auth.model');
-const { OTP_EXPIRY_MINUTES } = require('./auth.constants');
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../../shared/utils/token');
-const { generateOTP, hashOTP, verifyOTP: verifyOTPHash } = require('../../shared/utils/otp');
+const usersService = require('../users/users.service');
 const AppError = require('../../shared/utils/AppError');
 const logger = require('../../shared/utils/logger');
-const { sendEmailNotification } = require('../../shared/notificationService');
-
-// ──────────────────────────────────────────
-// INTERNAL HELPERS (not exported)
-// ──────────────────────────────────────────
 
 /**
- * Hash a refresh token with SHA-256 for safe DB storage.
- * @param {string} token — Raw refresh token JWT
- * @returns {string} Hex-encoded SHA-256 hash
+ * The ONLY allowed email domain for UniCampus.
+ * Case-insensitive comparison is applied.
  */
-const hashRefreshToken = (token) => {
-  return crypto.createHash('sha256').update(token).digest('hex');
+const ALLOWED_DOMAIN = 'adityauniversity.in';
+
+/**
+ * Validate that an email belongs to the allowed institutional domain.
+ *
+ * @param {string} email — Email to validate
+ * @throws {AppError} 403 if domain is not allowed
+ */
+const validateEmailDomain = (email) => {
+  const domain = email.split('@')[1]?.toLowerCase();
+  if (domain !== ALLOWED_DOMAIN) {
+    throw new AppError(
+      `Only @${ALLOWED_DOMAIN} email addresses are allowed on UniCampus.`,
+      403
+    );
+  }
 };
 
 /**
- * Generate both access and refresh tokens for a user.
- * @param {Object} user — User document (needs _id, email, and role)
- * @returns {{ accessToken: string, refreshToken: string }}
- */
-const generateTokenPair = (user) => {
-  const accessToken = generateAccessToken({ id: user._id, email: user.email, role: user.role });
-  const refreshToken = generateRefreshToken({ id: user._id });
-  return { accessToken, refreshToken };
-};
-
-/**
- * Build the OTP email HTML body.
- * @param {string} otp — The plain-text OTP
- * @returns {string} HTML email body
- */
-const buildOTPEmail = (otp) => {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #4F46E5;">UniCampus Verification</h2>
-      <p>Your one-time verification code is:</p>
-      <div style="background: #F3F4F6; padding: 16px; border-radius: 8px; text-align: center; margin: 20px 0;">
-        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1F2937;">${otp}</span>
-      </div>
-      <p style="color: #6B7280; font-size: 14px;">
-        This code expires in ${OTP_EXPIRY_MINUTES} minutes.<br/>
-        If you didn't request this, please ignore this email.
-      </p>
-    </div>
-  `;
-};
-
-/**
- * Generate a new OTP, hash it, and send it via email.
- * Reused by both register() and resendOTP() to avoid duplication.
+ * Sync a Firebase user with MongoDB.
  *
- * @param {Object} user — Mongoose user document to update
- * @param {string} emailSubject — Email subject line
- * @returns {Promise<void>}
- */
-const generateAndSendOTP = async (user, emailSubject) => {
-  const otp = generateOTP();
-  const otpHash = await hashOTP(otp);
-
-  user.otp = otpHash;
-  user.otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-  await user.save();
-
-  await sendEmailNotification(user.email, emailSubject, buildOTPEmail(otp));
-  logger.debug(`OTP sent to ${user.email}`);
-};
-
-// ──────────────────────────────────────────
-// PUBLIC INTERFACE
-// ──────────────────────────────────────────
-
-/**
- * Register a new user account.
+ * Called after the verifyFirebaseToken middleware has verified the
+ * Firebase ID token and populated req.firebaseUser.
  *
- * Flow:
- *   1. Check if email already exists → throw if it does
- *   2. Create user record
- *   3. Generate OTP, hash it, save to user, send via email
+ * CASE A — EXISTING USER:
+ *   If a MongoDB user with this firebaseUid exists:
+ *     - Update lastLogin timestamp
+ *     - Return existing user profile + onboarding state
+ *     - Metadata in request body is IGNORED (no accidental overwrites)
  *
- * @param {string} email — User's institutional email
- * @param {string} [role='student'] — User role
- * @returns {Promise<{ message: string }>}
+ * CASE B — FIRST-TIME USER:
+ *   If no MongoDB user exists:
+ *     - Validate required metadata (fullName, rollNumber, department, yearOfStudy)
+ *     - Create new MongoDB user with metadata
+ *     - Set isVerified = true (Firebase already verified the email)
+ *     - Return new user + onboarding state
+ *
+ * IDEMPOTENCY:
+ *   If two identical sync requests arrive concurrently:
+ *     - MongoDB unique constraints prevent duplicates
+ *     - E11000 errors are caught and retried as lookups
+ *     - Both requests return the same user record
+ *
+ * @param {string} firebaseUid — Firebase Auth UID (from verified token)
+ * @param {string} email — User's email (from verified token, lowercase)
+ * @param {Object} [metadata] — Registration data (used ONLY for first-time users)
+ * @param {string} [metadata.fullName]
+ * @param {string} [metadata.rollNumber]
+ * @param {string} [metadata.department]
+ * @param {number} [metadata.yearOfStudy]
+ * @returns {Promise<{ user: Object, isNewUser: boolean }>}
  */
-const register = async (email, role = 'student') => {
-  // 1. Check if email already exists
-  const existingUser = await AuthModel.findOne({ email });
-  if (existingUser) {
-    throw new AppError('An account with this email already exists.', 409);
+const syncUser = async (firebaseUid, email, metadata = {}) => {
+  // 1. Domain enforcement (defense in depth — middleware also checks)
+  validateEmailDomain(email);
+
+  // 2. Find existing user or create new one
+  const { user, isNewUser } = await usersService.findOrCreateFromFirebase(
+    firebaseUid,
+    email,
+    metadata
+  );
+
+  // 3. Update lastLogin
+  await usersService.updateLastLogin(user._id);
+
+  if (isNewUser) {
+    logger.info(`New user synced: ${email}`);
+  } else {
+    logger.info(`Existing user synced: ${email}`);
   }
 
-  // 2. Create user record
-  const user = await AuthModel.create({ email, role });
-
-  // 3. Generate OTP, save hash, and send email
-  await generateAndSendOTP(user, 'UniCampus — Verify Your Account');
-
-  return { message: 'OTP sent to your email. Please verify to complete registration.' };
-};
-
-/**
- * Verify OTP and issue authentication tokens.
- *
- * Flow:
- *   1. Find user by email, select +otp +otpExpiry
- *   2. Verify OTP hash matches and hasn't expired
- *   3. Mark user as verified, clear OTP fields
- *   4. Generate access + refresh tokens
- *   5. Save hashed refresh token to DB, update lastLogin
- *
- * @param {string} email — User's email
- * @param {string} otp — 6-digit OTP submitted by user
- * @returns {Promise<{ accessToken: string, refreshToken: string, user: Object }>}
- */
-const verifyOTPService = async (email, otp) => {
-  // 1. Find user with OTP fields included
-  const user = await AuthModel.findOne({ email }).select('+otp +otpExpiry');
-
-  if (!user) {
-    throw new AppError('No account found with this email.', 404);
-  }
-
-  // 2. Check OTP exists
-  if (!user.otp) {
-    throw new AppError('No OTP was requested. Please register or resend OTP.', 400);
-  }
-
-  // 3. Verify OTP hash
-  const isOTPValid = await verifyOTPHash(otp, user.otp);
-  if (!isOTPValid) {
-    throw new AppError('Invalid OTP. Please check and try again.', 400);
-  }
-
-  // 4. Check expiry
-  if (user.otpExpiry < new Date()) {
-    throw new AppError('OTP has expired. Please request a new one.', 400);
-  }
-
-  // 5. Mark verified, clear OTP fields
-  user.isVerified = true;
-  user.otp = undefined;
-  user.otpExpiry = undefined;
-  user.lastLogin = new Date();
-
-  // 6. Generate tokens
-  const { accessToken, refreshToken } = generateTokenPair(user);
-
-  // 7. Save hashed refresh token
-  user.refreshToken = hashRefreshToken(refreshToken);
-  await user.save();
-
+  // 4. Return user data + state for frontend routing decisions
   return {
-    accessToken,
-    refreshToken,
     user: {
       id: user._id,
       email: user.email,
       role: user.role,
+      fullName: user.fullName,
+      rollNumber: user.rollNumber,
+      avatar: user.avatar,
+      onboardingCompleted: user.onboardingCompleted,
+      onboardingSkipped: user.onboardingSkipped,
+      profileCompletionPercent: user.profileCompletionPercent,
     },
+    isNewUser,
   };
 };
 
 /**
- * Resend OTP to an existing user.
+ * Get the current authenticated user's full data.
+ * Called by GET /auth/me — returns all profile fields.
  *
- * Flow:
- *   1. Find user by email
- *   2. Generate new OTP, hash it, save to user, send via email
+ * This is the primary "session check" endpoint. The frontend calls
+ * this on app load to determine:
+ *   - Is the user authenticated?
+ *   - Should they be sent to onboarding or dashboard?
+ *   - What's their current profile state?
  *
- * USE CASE: Returning users who want to log in, or users whose OTP expired.
- *
- * @param {string} email — User's email
- * @returns {Promise<{ message: string }>}
+ * @param {string} userId — MongoDB _id (from req.user.id)
+ * @returns {Promise<{ user: Object }>}
+ * @throws {AppError} 404 if user not found
  */
-const resendOTP = async (email) => {
-  const user = await AuthModel.findOne({ email });
+const getCurrentUser = async (userId) => {
+  const user = await usersService.findById(userId);
 
   if (!user) {
-    throw new AppError('No account found with this email. Please register first.', 404);
+    throw new AppError('User not found.', 404);
   }
 
-  await generateAndSendOTP(user, 'UniCampus — Your New Verification Code');
-
-  return { message: 'New OTP sent to your email.' };
-};
-
-/**
- * Refresh authentication tokens.
- *
- * Flow:
- *   1. Verify the refresh token JWT (throws if invalid/expired)
- *   2. Find user by decoded ID, select +refreshToken
- *   3. Compare incoming token hash with stored hash
- *   4. Generate new token pair
- *   5. Rotate: save new hashed refresh token, invalidating the old one
- *
- * ROTATION: Every refresh invalidates the old token. If an old token is
- * reused (theft detected), the stored hash won't match → access denied.
- *
- * @param {string} incomingRefreshToken — The refresh token JWT from cookie
- * @returns {Promise<{ accessToken: string, refreshToken: string }>}
- */
-const refreshTokens = async (incomingRefreshToken) => {
-  // 1. Verify JWT structure and signature
-  const decoded = verifyRefreshToken(incomingRefreshToken);
-
-  // 2. Find user with stored refresh token hash
-  const user = await AuthModel.findById(decoded.id).select('+refreshToken');
-
-  if (!user) {
-    throw new AppError('User not found. Please log in again.', 401);
-  }
-
-  if (!user.refreshToken) {
-    throw new AppError('Session expired. Please log in again.', 401);
-  }
-
-  // 3. Compare incoming token hash with stored hash
-  const incomingHash = hashRefreshToken(incomingRefreshToken);
-  if (incomingHash !== user.refreshToken) {
-    // Possible token theft — clear all sessions for this user
-    user.refreshToken = undefined;
-    await user.save();
-
-    logger.warn(`Refresh token reuse detected for user ${user._id}`);
-    throw new AppError('Token reuse detected. Please log in again.', 401);
-  }
-
-  // 4. Generate new token pair
-  const { accessToken, refreshToken } = generateTokenPair(user);
-
-  // 5. Rotate: save new hash
-  user.refreshToken = hashRefreshToken(refreshToken);
-  await user.save();
-
-  return { accessToken, refreshToken };
-};
-
-/**
- * Log out a user by clearing their refresh token.
- *
- * @param {string} userId — The user's MongoDB _id
- * @returns {Promise<{ message: string }>}
- */
-const logout = async (userId) => {
-  await AuthModel.findByIdAndUpdate(userId, { refreshToken: undefined });
-  return { message: 'Logged out successfully.' };
+  return {
+    user: {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      fullName: user.fullName,
+      rollNumber: user.rollNumber,
+      department: user.department,
+      yearOfStudy: user.yearOfStudy,
+      bio: user.bio,
+      skills: user.skills,
+      interests: user.interests,
+      techStack: user.techStack,
+      rolesPreferred: user.rolesPreferred,
+      availability: user.availability,
+      avatar: user.avatar,
+      github: user.github,
+      linkedin: user.linkedin,
+      portfolio: user.portfolio,
+      onboardingCompleted: user.onboardingCompleted,
+      onboardingSkipped: user.onboardingSkipped,
+      profileCompletionPercent: user.profileCompletionPercent,
+      reputationScore: user.reputationScore,
+      badges: user.badges,
+      isActive: user.isActive,
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt,
+    },
+  };
 };
 
 module.exports = {
-  register,
-  verifyOTP: verifyOTPService,
-  resendOTP,
-  refreshTokens,
-  logout,
+  syncUser,
+  getCurrentUser,
 };

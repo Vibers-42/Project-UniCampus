@@ -30,11 +30,12 @@ const env = Object.freeze({
   // In development: '*' allows all origins.
   // In production: set to your frontend URL (e.g., https://unicampus.vercel.app).
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
+  FRONTEND_URL: process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173',
 
-  // ───── JWT ─────
-  // Two separate secrets for access and refresh tokens.
-  // Access tokens are short-lived (carried in Authorization header).
-  // Refresh tokens are long-lived (stored in httpOnly cookie).
+  // ───── JWT (reserved for future use) ─────
+  // Firebase handles primary authentication tokens.
+  // These are reserved for potential future features
+  // (invitation links, internal service tokens, etc.).
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || '',
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || '',
   JWT_ACCESS_EXPIRES: process.env.JWT_ACCESS_EXPIRES || '15m',
@@ -53,8 +54,17 @@ const env = Object.freeze({
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '',
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || '',
 
+  // ───── Firebase Admin SDK ─────
+  // Used for verifying Firebase ID tokens sent by the frontend.
+  // The private key is stored in .env with literal \n characters;
+  // firebase.js handles converting them to actual newlines.
+  // These are BACKEND-ONLY — never expose to the frontend.
+  FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || '',
+  FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL || '',
+  FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY || '',
+
   // ───── Email (Nodemailer) ─────
-  // Used for OTP delivery during registration/verification.
+  // Used for platform notifications (not for auth — Firebase handles verification).
   EMAIL_HOST: process.env.EMAIL_HOST || '',
   EMAIL_PORT: process.env.EMAIL_PORT || 587,
   EMAIL_USER: process.env.EMAIL_USER || '',

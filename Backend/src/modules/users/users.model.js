@@ -1,43 +1,60 @@
 /**
- * @file users.model.js — Student Profile Schema
+ * @file users.model.js — Unified User Model
  *
  * SINGLE RESPONSIBILITY:
- *   Stores student profile/identity data. This is intentionally SEPARATE
- *   from auth.model.js (which stores authentication concerns only).
+ *   THE ONLY user-related model in the entire application.
+ *   Stores everything about a user: identity, auth mapping, profile,
+ *   onboarding state, and future-ready platform fields.
  *
- * LINKING:
- *   auth.model  → authentication (email, otp, tokens, role)
- *   users.model → profile (name, department, skills, avatar, etc.)
- *   Linked by `email` — not by embedding one inside the other.
+ * WHY ONE MODEL:
+ *   Firebase handles ALL authentication concerns (credentials, verification,
+ *   password reset, session lifecycle). The backend stores zero passwords,
+ *   zero OTPs, zero refresh tokens. One unified model is simpler, faster
+ *   to query, and eliminates cross-collection sync issues.
  *
- *   This separation means:
- *   - Changing auth strategy doesn't touch profile data
- *   - Profile updates never affect auth state
- *   - Each module owns its own data completely
- *
- * IDENTITY CONTRACT:
- *   This model is the global identity source for all modules.
- *   Other modules reference users by `email` (string), never by ObjectId.
- *   This ensures any module can be removed or replaced independently.
+ * IDENTITY FIELDS:
+ *   firebaseUid  — Maps to Firebase Auth. Used ONLY by auth middleware and
+ *                  users.service.js for authentication lookups. No business
+ *                  module should ever reference this field.
+ *   email        — Human-readable identity. Used as the cross-module link.
+ *                  All business modules reference users by email.
+ *   _id          — MongoDB ObjectId. Used for internal relationships
+ *                  (e.g., event.createdBy, resource.uploadedBy).
  *
  * SCOPE:
- *   Internal to users/ — only users.service.js imports this.
- *
- * BINARY DATA:
- *   avatarUrl stores a Cloudinary URL string — NEVER a Buffer.
- *   Frontend uploads directly to Cloudinary; backend stores only the URL.
+ *   Internal to users/ — only users.service.js imports this model.
+ *   Auth module accesses user data through users.service.js (public interface).
+ *   Admin module is the only documented exception (cross-module model access).
  *
  * INDEXES:
- *   - email: unique lookup + auth-profile linking
+ *   - firebaseUid: unique, optimized for auth middleware lookups (every request)
+ *   - email: unique, cross-module identity lookups
+ *   - rollNumber: unique (sparse — null allowed for new users pre-onboarding)
  *   - department: filter by department
  *   - skills: skill-based search and teammate matching
- *   - text index on name + skills + department: full-text search
+ *   - text index on fullName + skills + department: full-text search
  */
 
 const mongoose = require('mongoose');
 
 const usersSchema = new mongoose.Schema(
   {
+    // ══════════════════════════════════════════
+    // FIREBASE IDENTITY (auth mapping only)
+    // ══════════════════════════════════════════
+    // Used ONLY by auth middleware + users.service.js.
+    // Business modules NEVER reference this field.
+    firebaseUid: {
+      type: String,
+      required: [true, 'Firebase UID is required'],
+      unique: true,
+      index: true,
+    },
+
+    // ══════════════════════════════════════════
+    // CORE IDENTITY
+    // ══════════════════════════════════════════
+
     email: {
       type: String,
       required: [true, 'Email is required'],
@@ -47,11 +64,20 @@ const usersSchema = new mongoose.Schema(
       index: true,
     },
 
-    name: {
+    fullName: {
       type: String,
       trim: true,
-      maxlength: [100, 'Name cannot exceed 100 characters'],
+      maxlength: [100, 'Full name cannot exceed 100 characters'],
       default: '',
+    },
+
+    rollNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      sparse: true, // Allows multiple null values (pre-onboarding users)
+      unique: true,
+      index: true,
     },
 
     department: {
@@ -62,22 +88,42 @@ const usersSchema = new mongoose.Schema(
       index: true,
     },
 
-    academicYear: {
+    yearOfStudy: {
       type: Number,
-      min: [1, 'Academic year must be at least 1'],
-      max: [4, 'Academic year cannot exceed 4'],
+      min: [1, 'Year of study must be at least 1'],
+      max: [4, 'Year of study cannot exceed 4'],
     },
 
-    semester: {
-      type: Number,
-      min: [1, 'Semester must be at least 1'],
-      max: [8, 'Semester cannot exceed 8'],
+    // ══════════════════════════════════════════
+    // SYSTEM FIELDS
+    // ══════════════════════════════════════════
+
+    role: {
+      type: String,
+      enum: {
+        values: ['student', 'clubAdmin', 'admin'],
+        message: 'Role must be student, clubAdmin, or admin',
+      },
+      default: 'student',
     },
 
-    skills: {
-      type: [String], // e.g. ['react', 'node', 'python']
-      default: [],
-      index: true, // Teammate matching + skill search
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+
+    // ══════════════════════════════════════════
+    // OPTIONAL PROFILE FIELDS
+    // ══════════════════════════════════════════
+
+    avatar: {
+      type: String, // Cloudinary URL — never binary
+      default: '',
     },
 
     bio: {
@@ -87,52 +133,109 @@ const usersSchema = new mongoose.Schema(
       default: '',
     },
 
-    avatarUrl: {
-      type: String, // Cloudinary URL — never binary
+    skills: {
+      type: [String], // e.g. ['react', 'node', 'python']
+      default: [],
+      index: true, // Teammate matching + skill search
+    },
+
+    interests: {
+      type: [String], // e.g. ['web development', 'machine learning', 'design']
+      default: [],
+    },
+
+    techStack: {
+      type: [String], // e.g. ['MERN', 'Flutter', 'Django']
+      default: [],
+    },
+
+    rolesPreferred: {
+      type: [String], // e.g. ['frontend', 'backend', 'fullstack', 'design', 'PM']
+      default: [],
+    },
+
+    availability: {
+      type: String,
+      enum: {
+        values: ['available', 'busy', 'looking-for-team', 'not-available', ''],
+        message: 'Availability must be available, busy, looking-for-team, or not-available',
+      },
       default: '',
     },
 
-    // ── Social Links ──
-    // All optional. Frontend validates URL format before submission.
-
-    githubUrl: {
+    github: {
       type: String,
       trim: true,
       default: '',
     },
 
-    linkedinUrl: {
+    linkedin: {
       type: String,
       trim: true,
       default: '',
     },
 
-    portfolioUrl: {
+    portfolio: {
       type: String,
       trim: true,
       default: '',
     },
 
-    college: {
-      type: String,
-      trim: true,
-      maxlength: [200, 'College name cannot exceed 200 characters'],
-      default: '',
-    },
+    // ══════════════════════════════════════════
+    // ONBOARDING FIELDS
+    // ══════════════════════════════════════════
 
-    isProfileComplete: {
+    onboardingCompleted: {
       type: Boolean,
       default: false,
     },
+
+    onboardingSkipped: {
+      type: Boolean,
+      default: false,
+    },
+
+    // ══════════════════════════════════════════
+    // FUTURE-READY STUBS
+    // ══════════════════════════════════════════
+    // These fields cost zero storage when empty. Adding them now
+    // prevents future schema migrations and lets UI placeholder
+    // components render immediately.
+
+    reputationScore: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    badges: {
+      type: [String], // e.g. ['early-adopter', 'top-contributor', 'hackathon-winner']
+      default: [],
+    },
+
+    profileCompletionPercent: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+
+    // ══════════════════════════════════════════
+    // METADATA
+    // ══════════════════════════════════════════
+
+    lastLogin: {
+      type: Date,
+    },
   },
   {
-    timestamps: true,
+    timestamps: true, // createdAt, updatedAt
   }
 );
 
-// Full-text search across name, skills, and department
-usersSchema.index({ name: 'text', skills: 'text', department: 'text' });
+// Full-text search across fullName, skills, and department
+usersSchema.index({ fullName: 'text', skills: 'text', department: 'text' });
 
-const UsersModel = mongoose.model('Profile', usersSchema);
+const User = mongoose.model('User', usersSchema);
 
-module.exports = UsersModel;
+module.exports = User;

@@ -12,12 +12,13 @@
  *
  * WHAT IT HANDLES:
  *   - Operational errors (err.statusCode is set by the thrower)
- *   - Mongoose ValidationError (schema validation failures)
- *   - Mongoose CastError (invalid ObjectId, etc.)
- *   - Mongoose duplicate key error (code 11000)
- *   - JWT errors (JsonWebTokenError, TokenExpiredError)
- *   - JSON SyntaxError (malformed request body)
- *   - Unknown/unexpected errors (500 fallback)
+ *   - Mongoose ValidationError → 422 (schema validation failures)
+ *   - Mongoose CastError → 400 (invalid ObjectId, etc.)
+ *   - Mongoose duplicate key error → 409 (code 11000)
+ *   - JWT errors → 401 (JsonWebTokenError, TokenExpiredError)
+ *   - Firebase Auth errors → 401 (id-token-expired, revoked, etc.)
+ *   - JSON SyntaxError → 400 (malformed request body)
+ *   - Unknown/unexpected errors → 500 (fallback)
  *
  * RESPONSE SHAPE (always):
  *   {
@@ -56,9 +57,10 @@ const errorHandler = (err, req, res, next) => {
 
   // ── Mongoose: Validation Error ──
   // Triggered when a document fails schema validation (e.g. required field missing).
+  // 422 Unprocessable Entity: the request format is correct but content is invalid.
   if (err.name === 'ValidationError') {
     const messages = Object.values(err.errors).map((e) => e.message);
-    err.statusCode = 400;
+    err.statusCode = 422;
     err.message = messages.join('. ');
   }
 
@@ -87,6 +89,30 @@ const errorHandler = (err, req, res, next) => {
   if (err.name === 'TokenExpiredError') {
     err.statusCode = 401;
     err.message = 'Token has expired. Please log in again.';
+  }
+
+  // ── Firebase Auth Errors ──
+  // Firebase Admin SDK errors have a `codePrefix` of 'auth' and
+  // a `code` like 'auth/id-token-expired', 'auth/argument-error', etc.
+  // These can bubble up from auth.middleware.js or auth.routes.js.
+  if (err.codePrefix === 'auth' || (err.code && String(err.code).startsWith('auth/'))) {
+    const firebaseCode = err.code || '';
+    if (firebaseCode.includes('id-token-expired')) {
+      err.statusCode = 401;
+      err.message = 'Authentication token has expired. Please log in again.';
+    } else if (firebaseCode.includes('id-token-revoked')) {
+      err.statusCode = 401;
+      err.message = 'Authentication token has been revoked. Please log in again.';
+    } else if (firebaseCode.includes('user-not-found')) {
+      err.statusCode = 404;
+      err.message = 'Firebase user not found.';
+    } else if (firebaseCode.includes('argument-error')) {
+      err.statusCode = 400;
+      err.message = 'Invalid authentication token format.';
+    } else {
+      err.statusCode = err.statusCode && err.statusCode !== 500 ? err.statusCode : 401;
+      err.message = err.message || 'Authentication failed.';
+    }
   }
 
   // ── Build response ──

@@ -16,23 +16,23 @@
  *   - These cross-module imports are the ONLY exception in the codebase.
  */
 
-const AuthModel = require('../auth/auth.model');
+const User = require('../users/users.model');
 const Resource = require('../resources/resources.model');
 const Event = require('../events/events.model');
 const AppError = require('../../shared/utils/AppError');
 
 const getAllUsers = async () => {
-  return AuthModel.find()
-    .select('email role isVerified lastLogin createdAt')
+  return User.find()
+    .select('email role fullName onboardingCompleted isActive lastLogin createdAt')
     .sort({ createdAt: -1 });
 };
 
 const verifyUser = async (email) => {
-  const user = await AuthModel.findOne({ email });
+  const user = await User.findOne({ email });
   if (!user) throw new AppError('User not found', 404);
-  user.isVerified = true;
-  await user.save();
-  return { email: user.email, isVerified: user.isVerified };
+  // Note: With Firebase, email verification is handled by Firebase.
+  // This admin endpoint can be used for role changes or manual overrides.
+  return { email: user.email, role: user.role };
 };
 
 const deleteResource = async (id) => {

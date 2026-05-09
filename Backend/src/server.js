@@ -21,6 +21,8 @@ require('dotenv').config();
 const app = require('./app');
 const { env, connectDB } = require('./config');
 const logger = require('./shared/utils/logger');
+const cron = require('node-cron');
+const { cleanupUnverifiedUsers } = require('./utils/cleanupUnverifiedUsers');
 
 /**
  * Start the server.
@@ -38,6 +40,15 @@ const startServer = async () => {
       );
       logger.info(`Health check: http://localhost:${env.PORT}/api/health`);
     });
+
+    // ── Step 3: Schedule cleanup job ──
+    // Runs every hour. Deletes unverified Firebase accounts older than 24h
+    // that have no MongoDB user record.
+    cron.schedule('0 * * * *', () => {
+      cleanupUnverifiedUsers()
+        .catch((err) => logger.error('Cleanup job failed:', err.message));
+    });
+    logger.info('Scheduled: unverified account cleanup (hourly)');
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);

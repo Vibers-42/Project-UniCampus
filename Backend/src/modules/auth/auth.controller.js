@@ -4,112 +4,177 @@
  * SINGLE RESPONSIBILITY:
  *   Thin layer between routes and auth.service.js.
  *   Each function: parses req → calls service → sends response.
- *   No business logic. No if/else decisions. No direct DB calls.
+ *   No business logic. No direct DB calls.
  *
  * SCOPE:
  *   Internal to auth/ — only auth.routes.js imports this file.
  *
+ * ENDPOINTS:
+ *   POST /auth/sync  — Sync Firebase user → MongoDB, return user data
+ *   GET  /auth/me    — Return current authenticated user's full profile
+ *
  * PATTERNS:
  *   - Every function is wrapped in catchAsync (no try/catch)
  *   - Every response uses sendSuccess (no raw res.json)
- *   - Refresh token is set/cleared as httpOnly cookie by this controller
- *   - Access token is returned in the response body (frontend stores it in memory)
+ *   - Firebase ID token is verified by middleware BEFORE
+ *     these handlers run — req.firebaseUser or req.user is always available
+ *
+ * NOTE:
+ *   Firebase handles signup, email verification, password reset, and
+ *   session persistence. The backend only verifies tokens and syncs
+ *   MongoDB records. There are no OTP or refresh-token endpoints.
  */
 
 const catchAsync = require('../../middleware/catchAsync');
 const { sendSuccess } = require('../../shared/responses/apiResponse');
 const AppError = require('../../shared/utils/AppError');
 const authService = require('./auth.service');
-const { REFRESH_TOKEN_COOKIE_NAME, COOKIE_OPTIONS } = require('./auth.constants');
+const { firebaseAdmin } = require('../../config/firebase');
 const env = require('../../config/env');
+const logger = require('../../shared/utils/logger');
 
 /**
- * Build cookie options, adjusting `secure` for development.
- * In dev (HTTP), secure: true would prevent the cookie from being sent.
+ * POST /auth/sync
+ *
+ * Called by the frontend after Firebase authentication succeeds.
+ * The verifyFirebaseToken middleware (in auth.routes.js) has already
+ * verified the Firebase ID token, checked email_verified, enforced
+ * the @adityauniversity.in domain, and populated req.firebaseUser.
+ *
+ * CASE A — EXISTING USER:
+ *   req.body metadata is IGNORED. Returns existing user profile.
+ *
+ * CASE B — FIRST-TIME USER:
+ *   req.body metadata (fullName, rollNumber, department, yearOfStudy)
+ *   is used to create the MongoDB record.
+ *
+ * IDEMPOTENT: Multiple identical calls are safe.
  */
-const getCookieOptions = () => ({
-  ...COOKIE_OPTIONS,
-  secure: env.NODE_ENV === 'production', // Override: false in dev, true in prod
+const sync = catchAsync(async (req, res) => {
+  const { firebaseUid, email } = req.firebaseUser;
+
+  // Pass optional metadata from request body (only used for new users)
+  const metadata = {
+    fullName: req.body.fullName,
+    rollNumber: req.body.rollNumber,
+    department: req.body.department,
+    yearOfStudy: req.body.yearOfStudy,
+  };
+
+  const result = await authService.syncUser(firebaseUid, email, metadata);
+
+  const statusCode = result.isNewUser ? 201 : 200;
+  const message = result.isNewUser
+    ? 'Account created successfully.'
+    : 'Login successful.';
+
+  sendSuccess(res, result, message, statusCode);
 });
 
 /**
- * POST /auth/register
- * Register a new user account and send OTP via email.
+ * GET /auth/me
+ *
+ * Returns the current authenticated user's full profile.
+ * Used by the frontend on app load to check auth status and
+ * determine where to redirect (onboarding vs dashboard).
+ *
+ * protect middleware guarantees req.user.id is available.
  */
-const register = catchAsync(async (req, res) => {
-  const { email, role } = req.body;
-  const result = await authService.register(email, role);
-  sendSuccess(res, result, result.message, 201);
+const me = catchAsync(async (req, res) => {
+  const result = await authService.getCurrentUser(req.user.id);
+  sendSuccess(res, result, 'User fetched successfully.');
 });
 
 /**
- * POST /auth/verify-otp
- * Verify OTP, mark user as verified, and issue tokens.
- * Sets refresh token as httpOnly cookie.
+ * POST /auth/resend-verification
+ *
+ * Resends the verification email using Firebase Admin SDK.
+ * No auth token required (user is signed out after registration).
+ *
+ * Body: { email }
+ *
+ * Steps:
+ *   1. Validate email domain
+ *   2. Look up Firebase user by email
+ *   3. Check if already verified
+ *   4. Generate verification link with redirect
+ *   5. Send via Nodemailer
  */
-const verifyOTP = catchAsync(async (req, res) => {
-  const { email, otp } = req.body;
-  const result = await authService.verifyOTP(email, otp);
-
-  // Set refresh token as httpOnly cookie
-  res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, getCookieOptions());
-
-  // Return access token + user in body (frontend stores access token in memory)
-  sendSuccess(res, {
-    accessToken: result.accessToken,
-    user: result.user,
-  }, 'OTP verified successfully. You are now logged in.');
-});
-
-/**
- * POST /auth/resend-otp
- * Resend a new OTP to the user's email.
- */
-const resendOTP = catchAsync(async (req, res) => {
+const resendVerification = catchAsync(async (req, res, next) => {
   const { email } = req.body;
-  const result = await authService.resendOTP(email);
-  sendSuccess(res, result, result.message);
-});
 
-/**
- * POST /auth/refresh
- * Issue a new access token using the refresh token from the cookie.
- * Rotates the refresh token (old one becomes invalid).
- */
-const refresh = catchAsync(async (req, res) => {
-  const incomingRefreshToken = req.cookies[REFRESH_TOKEN_COOKIE_NAME];
-
-  if (!incomingRefreshToken) {
-    throw new AppError('No refresh token provided. Please log in again.', 401);
+  if (!email) {
+    return next(new AppError('Email is required.', 400));
   }
 
-  const result = await authService.refreshTokens(incomingRefreshToken);
+  const normalizedEmail = email.toLowerCase();
+  const domain = normalizedEmail.split('@')[1];
 
-  // Set new rotated refresh token as httpOnly cookie
-  res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, getCookieOptions());
+  if (domain !== 'adityauniversity.in') {
+    return next(new AppError('Only @adityauniversity.in emails are allowed.', 400));
+  }
 
-  // Return only the new access token in the body
-  sendSuccess(res, { accessToken: result.accessToken }, 'Tokens refreshed successfully.');
-});
+  // Find Firebase user by email
+  let firebaseUser;
+  try {
+    firebaseUser = await firebaseAdmin.auth().getUserByEmail(normalizedEmail);
+  } catch (err) {
+    if (err.code === 'auth/user-not-found') {
+      // Intentionally vague to prevent account enumeration
+      return next(new AppError('No account found for this email.', 404));
+    }
+    throw err;
+  }
 
-/**
- * POST /auth/logout
- * Clear the refresh token from DB and remove the cookie.
- * Requires authentication (protect middleware runs first).
- */
-const logout = catchAsync(async (req, res) => {
-  await authService.logout(req.user.id);
+  // Check if already verified
+  if (firebaseUser.emailVerified) {
+    return next(new AppError('Email is already verified. Please sign in.', 400));
+  }
 
-  // Clear the refresh token cookie
-  res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, getCookieOptions());
+  // Generate verification link with redirect to login
+  const redirectUrl = `${env.FRONTEND_URL}/login?verified=true`;
+  const verificationLink = await firebaseAdmin.auth().generateEmailVerificationLink(
+    normalizedEmail,
+    { url: redirectUrl }
+  );
 
-  sendSuccess(res, null, 'Logged out successfully.');
+  // Send via Nodemailer (uses existing notificationService infrastructure)
+  const { sendEmailNotification } = require('../../shared/notificationService');
+  await sendEmailNotification(
+    normalizedEmail,
+    'Verify your UniCampus email',
+    `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #6366f1;">UniCampus — Email Verification</h2>
+        <p>Hello,</p>
+        <p>Please verify your email address to complete your UniCampus registration.</p>
+        <table cellpadding="0" cellspacing="0" border="0" style="margin: 24px 0;">
+          <tr>
+            <td style="background-color: #6366f1; border-radius: 8px; padding: 12px 24px;">
+              <a href="${verificationLink}" 
+                 style="color: #ffffff; text-decoration: none; font-weight: bold; display: inline-block;">
+                Verify Email Address
+              </a>
+            </td>
+          </tr>
+        </table>
+        <p style="color: #888; font-size: 14px;">
+          If you didn't create a UniCampus account, you can safely ignore this email.
+        </p>
+        <p style="color: #888; font-size: 12px;">
+          If the button doesn't work, copy and paste this link into your browser:<br>
+          <a href="${verificationLink}" style="color: #6366f1; word-break: break-all;">${verificationLink}</a>
+        </p>
+      </div>
+    `
+  );
+
+  logger.info('Verification email resent to:', normalizedEmail);
+  sendSuccess(res, null, 'Verification email resent.', 200);
 });
 
 module.exports = {
-  register,
-  verifyOTP,
-  resendOTP,
-  refresh,
-  logout,
+  sync,
+  me,
+  resendVerification,
 };

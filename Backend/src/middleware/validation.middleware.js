@@ -42,7 +42,7 @@ const validate = (req, res, next) => {
       .join('. ');
 
     const err = new Error(errorMessages);
-    err.statusCode = 400;
+    err.statusCode = 422;
 
     // Attach the structured errors array for consumers who want field-level detail
     err.validationErrors = errors.array().map((e) => ({

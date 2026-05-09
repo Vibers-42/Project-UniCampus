@@ -1,124 +1,76 @@
 /**
- * @file auth.validation.js — Express-Validator Chains for Auth Routes
+ * @file auth.validation.js — Validation Chains for Auth Routes
  *
- * SINGLE RESPONSIBILITY:
- *   Defines validation rules for each auth endpoint. These arrays are
- *   passed as middleware in auth.routes.js, before the controller runs.
- *   If validation fails, validation.middleware.js catches it and forwards
- *   the error to error.middleware.js.
+ * SCOPE: Internal to auth/ — only auth.routes.js imports this.
  *
- * SCOPE:
- *   Internal to auth/ — only auth.routes.js imports this file.
+ * VALIDATION STRATEGY:
+ *   - Firebase tokens are verified by middleware, not express-validator
+ *   - These chains validate the Authorization header format and
+ *     optional registration metadata sent in the request body
+ *   - All body fields are OPTIONAL because existing users don't send them
+ *   - Required field enforcement for first-time users happens at the
+ *     service layer (where we know if the user is new or existing)
  *
  * USAGE:
- *   // In auth.routes.js:
- *   router.post('/register', validateRegister, validate, controller.register);
+ *   router.post('/sync', verifyFirebaseToken, validateSync, validate, controller.sync);
  */
 
-const { body, cookie } = require('express-validator');
+const { header, body } = require('express-validator');
 
 /**
- * validateRegister — Rules for POST /auth/register
+ * validateSync — Rules for POST /auth/sync
  *
- * Checks:
- *   - email: required, valid email format, institutional domain (.edu)
- *   - role: optional, must be one of the allowed values
+ * Validates:
+ *   - Authorization header (Bearer format)
+ *   - Optional registration metadata (fullName, rollNumber, department, yearOfStudy)
  *
- * INSTITUTIONAL DOMAIN CHECK:
- *   Currently checks for .edu — customize this regex for your university.
- *   Examples:
- *     /.edu$/i           — any .edu domain
- *     /@university.edu$/ — specific university only
- *   To disable: remove the custom validator below.
+ * NOTE: All body fields are optional at the validation layer.
+ * For existing users, the body is empty — metadata is ignored.
+ * For first-time users, the frontend sends registration data.
+ * The service layer handles the "new vs existing" distinction.
  */
-const validateRegister = [
-  body('email')
-    .trim()
+const validateSync = [
+  // ── Header ──
+  header('authorization')
     .notEmpty()
-    .withMessage('Email is required')
-    .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail()
+    .withMessage('Authorization header is required')
     .custom((value) => {
-      // Institutional domain check — modify this pattern for your university
-      // Accepts: any .edu or .ac.in domain
-      // To accept all domains (dev/testing), comment out this block.
-      const institutionalPattern = /\.(edu|ac\.in)$/i;
-      const domain = value.split('@')[1];
-      if (!institutionalPattern.test(domain)) {
-        throw new Error(
-          'Please use your institutional email address (.edu or .ac.in)'
-        );
+      if (!value.startsWith('Bearer ')) {
+        throw new Error('Authorization header must be in format: Bearer <token>');
       }
       return true;
     }),
 
-  body('role')
+  // ── Optional Registration Metadata ──
+  // These are only used when a first-time user syncs.
+  // For existing users, these are silently ignored by the service.
+
+  body('fullName')
     .optional()
-    .isIn(['student', 'clubAdmin', 'admin'])
-    .withMessage('Role must be student, clubAdmin, or admin'),
-];
-
-/**
- * validateVerifyOTP — Rules for POST /auth/verify-otp
- *
- * Checks:
- *   - email: required, valid format
- *   - otp: required, exactly 6 digits
- */
-const validateVerifyOTP = [
-  body('email')
     .trim()
-    .notEmpty()
-    .withMessage('Email is required')
-    .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail(),
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Full name must be between 1 and 100 characters'),
 
-  body('otp')
+  body('rollNumber')
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage('OTP is required')
-    .isLength({ min: 6, max: 6 })
-    .withMessage('OTP must be exactly 6 digits')
-    .isNumeric()
-    .withMessage('OTP must contain only numbers'),
-];
+    .isLength({ min: 2, max: 20 })
+    .withMessage('Roll number must be between 2 and 20 characters')
+    .isAlphanumeric()
+    .withMessage('Roll number must be alphanumeric'),
 
-/**
- * validateResendOTP — Rules for POST /auth/resend-otp
- *
- * Checks:
- *   - email: required, valid format
- */
-const validateResendOTP = [
-  body('email')
+  body('department')
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage('Email is required')
-    .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail(),
-];
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Department must be between 1 and 100 characters'),
 
-/**
- * validateRefresh — Rules for POST /auth/refresh
- *
- * Checks:
- *   - refreshToken cookie exists and is not empty
- *
- * NOTE: This is available for explicit validation if needed.
- *       The current route setup handles missing cookies in the service layer.
- */
-const validateRefresh = [
-  cookie('refreshToken')
-    .notEmpty()
-    .withMessage('Refresh token is required. Please log in again.'),
+  body('yearOfStudy')
+    .optional()
+    .isInt({ min: 1, max: 4 })
+    .withMessage('Year of study must be between 1 and 4'),
 ];
 
 module.exports = {
-  validateRegister,
-  validateVerifyOTP,
-  validateResendOTP,
-  validateRefresh,
+  validateSync,
 };
