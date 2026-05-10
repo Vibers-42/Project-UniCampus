@@ -1,41 +1,85 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
 import {
-  FileText, FileImage, File, Download, ThumbsUp, Bookmark, Share2, Trash2,
-  Eye, Star, ExternalLink, AlertTriangle
+  FileText, FileImage, File, Download, ThumbsUp, Bookmark,
+  Share2, Trash2, Eye, Star, ExternalLink, AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import {
-  voteResource, downloadResource, deleteResource
-} from '../../api/resource.api';
+import { voteResource, downloadResource, deleteResource } from '../../api/resource.api';
 
-// ─── File type helpers ───────────────────────────────────────────────────────
-const FILE_ICONS = {
-  pdf: { icon: FileText, color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/20' },
-  doc: { icon: FileText, color: 'text-blue-400', bg: 'bg-blue-400/10 border-blue-400/20' },
-  image: { icon: FileImage, color: 'text-green-400', bg: 'bg-green-400/10 border-green-400/20' },
+/* ── Constants ────────────────────────────────────────────────────────────── */
+const FILE_STYLE = {
+  pdf: {
+    Icon: FileText,
+    iconColor: '#f87171',
+    bg: 'rgba(248,113,113,0.08)',
+    border: 'rgba(248,113,113,0.18)',
+  },
+  doc: {
+    Icon: FileText,
+    iconColor: '#60a5fa',
+    bg: 'rgba(96,165,250,0.08)',
+    border: 'rgba(96,165,250,0.18)',
+  },
+  image: {
+    Icon: FileImage,
+    iconColor: '#4ade80',
+    bg: 'rgba(74,222,128,0.08)',
+    border: 'rgba(74,222,128,0.18)',
+  },
 };
 
-const CATEGORY_COLORS = {
-  notes: 'bg-primary-500/10 text-primary-400 border-primary-500/20',
-  pyq: 'bg-orange-400/10 text-orange-400 border-orange-400/20',
-  'lab-manual': 'bg-purple-400/10 text-purple-400 border-purple-400/20',
-  assignment: 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20',
-  reference: 'bg-cyan-400/10 text-cyan-400 border-cyan-400/20',
-  other: 'bg-dark-700 text-dark-400 border-dark-600',
+const CAT_STYLE = {
+  notes: { bg: 'rgba(92,124,250,0.1)', color: '#748ffc', border: 'rgba(92,124,250,0.2)' },
+  pyq: { bg: 'rgba(251,146,60,0.1)', color: '#fb923c', border: 'rgba(251,146,60,0.2)' },
+  'lab-manual': { bg: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: 'rgba(167,139,250,0.2)' },
+  assignment: { bg: 'rgba(250,204,21,0.1)', color: '#facc15', border: 'rgba(250,204,21,0.2)' },
+  reference: { bg: 'rgba(34,211,238,0.1)', color: '#22d3ee', border: 'rgba(34,211,238,0.2)' },
+  other: { bg: 'rgba(73,80,87,0.3)', color: '#8891a8', border: 'rgba(73,80,87,0.4)' },
 };
 
-function StarRating({ rating, count }) {
+/* ── Compact variant for trending/related ─────────────────────────────────── */
+function CompactCard({ resource }) {
   return (
-    <span className="flex items-center gap-1">
-      <Star size={11} className="text-yellow-400 fill-yellow-400" />
-      <span className="text-dark-300 text-xs">{rating > 0 ? rating.toFixed(1) : '—'}</span>
-      {count > 0 && <span className="text-dark-500 text-[10px]">({count})</span>}
-    </span>
+    <Link
+      to={`/resources/${resource._id}`}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        padding: '10px 12px',
+        borderRadius: '12px',
+        background: 'rgb(var(--color-dark-800) / 0.4)',
+        border: '0.5px solid rgb(var(--color-dark-700) / 0.5)',
+        textDecoration: 'none',
+        transition: 'all 0.18s',
+      }}
+      className="hover:border-primary-500/30 hover:bg-dark-800 group"
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgb(var(--color-dark-100))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          className="group-hover:text-primary-300 transition-colors">
+          {resource.title}
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+          {resource.subject && (
+            <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '20px', background: 'rgb(var(--color-primary-500) / 0.1)', color: 'rgb(var(--color-primary-400))' }}>
+              {resource.subject}
+            </span>
+          )}
+          <span style={{ fontSize: '10px', color: 'rgb(var(--color-dark-500))', display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <Download size={9} />{resource.downloadCount || 0}
+          </span>
+        </div>
+      </div>
+      <ExternalLink size={12} style={{ color: 'rgb(var(--color-dark-600))', flexShrink: 0 }}
+        className="group-hover:text-primary-400 transition-colors" />
+    </Link>
   );
 }
 
+/* ── Main card ────────────────────────────────────────────────────────────── */
 export default function ResourceCard({
   resource: initialResource,
   compact = false,
@@ -45,23 +89,19 @@ export default function ResourceCard({
   onPreview,
 }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [resource, setResource] = useState(initialResource);
   const [downloading, setDownloading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState(null);
   const toastRef = useRef(null);
 
-  const showToast = (msg, type = 'success') => {
-    setToast({ msg, type });
-    clearTimeout(toastRef.current);
-    toastRef.current = setTimeout(() => setToast(null), 3000);
-  };
+  if (compact) return <CompactCard resource={initialResource} />;
 
-  const fileInfo = FILE_ICONS[resource.fileType] || FILE_ICONS.pdf;
-  const FileIcon = fileInfo.icon;
-  const catColor = CATEGORY_COLORS[resource.category] || CATEGORY_COLORS.other;
+  const fileStyle = FILE_STYLE[resource.fileType] || FILE_STYLE.pdf;
+  const { Icon: FileIcon } = fileStyle;
+  const catStyle = CAT_STYLE[resource.category] || CAT_STYLE.other;
+
   const uploaderName = resource.uploadedBy?.fullName || 'Unknown';
   const uploaderAvatar = resource.uploadedBy?.avatar;
   const isOwner = user && resource.uploadedBy?._id === user._id;
@@ -71,32 +111,33 @@ export default function ResourceCard({
   const isSaved = savedIds.includes(resource._id);
 
   const uploadedDate = resource.createdAt
-    ? (Date.now() - new Date(resource.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
+    ? Date.now() - new Date(resource.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
       ? formatDistanceToNow(new Date(resource.createdAt), { addSuffix: true })
-      : format(new Date(resource.createdAt), 'MMM d'))
+      : format(new Date(resource.createdAt), 'MMM d')
     : '';
 
-  // ─── Handlers ──────────────────────────────────────────────────────────────
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    clearTimeout(toastRef.current);
+    toastRef.current = setTimeout(() => setToast(null), 2500);
+  };
 
+  /* ── Action handlers (zero logic changes) ── */
   const handleVote = useCallback(async (e) => {
     e.stopPropagation();
     if (!user) return;
-    // Optimistic update
     setResource(prev => {
-      const prevVotes = prev.upvotes || [];
-      const alreadyVoted = prevVotes.some(u => (typeof u === 'string' ? u : u?._id) === user._id);
+      const prev2 = prev.upvotes || [];
+      const voted = prev2.some(u => (typeof u === 'string' ? u : u?._id) === user._id);
       return {
         ...prev,
-        upvotes: alreadyVoted
-          ? prevVotes.filter(u => (typeof u === 'string' ? u : u?._id) !== user._id)
-          : [...prevVotes, user._id],
+        upvotes: voted
+          ? prev2.filter(u => (typeof u === 'string' ? u : u?._id) !== user._id)
+          : [...prev2, user._id],
       };
     });
-    try {
-      await voteResource(resource._id);
-    } catch {
-      setResource(initialResource); // revert on error
-    }
+    try { await voteResource(resource._id); }
+    catch { setResource(initialResource); }
   }, [resource._id, user, initialResource]);
 
   const handleDownload = useCallback(async (e) => {
@@ -109,11 +150,8 @@ export default function ResourceCard({
         window.open(url, '_blank', 'noopener,noreferrer');
         setResource(prev => ({ ...prev, downloadCount: (prev.downloadCount || 0) + 1 }));
       }
-    } catch {
-      showToast('Download failed', 'error');
-    } finally {
-      setDownloading(false);
-    }
+    } catch { showToast('Download failed', 'error'); }
+    finally { setDownloading(false); }
   }, [resource._id]);
 
   const handleSave = useCallback((e) => {
@@ -126,183 +164,279 @@ export default function ResourceCard({
 
   const handleShare = useCallback(async (e) => {
     e.stopPropagation();
-    const url = `${window.location.origin}/resources/${resource._id}`;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(`${window.location.origin}/resources/${resource._id}`);
       showToast('Link copied!');
-    } catch {
-      showToast('Could not copy link', 'error');
-    }
+    } catch { showToast('Could not copy', 'error'); }
   }, [resource._id]);
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
     try {
       await deleteResource(resource._id);
-      showToast('Resource deleted');
+      showToast('Deleted');
       if (onDeleted) onDeleted(resource._id);
-    } catch {
-      showToast('Delete failed', 'error');
-    } finally {
-      setDeleting(false);
-      setShowConfirmDelete(false);
-    }
+    } catch { showToast('Delete failed', 'error'); }
+    finally { setDeleting(false); setShowConfirmDelete(false); }
   }, [resource._id, onDeleted]);
 
-  const handlePreview = useCallback((e) => {
-    e.stopPropagation();
-    if (onPreview) onPreview(resource);
-  }, [resource, onPreview]);
-
-  if (compact) {
-    return (
-      <Link to={`/resources/${resource._id}`}
-        className="flex items-center gap-3 p-3 rounded-xl bg-dark-800/50 border border-dark-700/50 hover:border-primary-500/30 hover:bg-dark-800 transition-all group">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center border ${fileInfo.bg} shrink-0`}>
-          <FileIcon size={16} className={fileInfo.color} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-dark-100 text-sm font-medium truncate group-hover:text-primary-300 transition-colors">{resource.title}</p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${catColor}`}>{resource.category}</span>
-            <span className="text-dark-500 text-[10px] flex items-center gap-1">
-              <Download size={9} />{resource.downloadCount || 0}
-            </span>
-          </div>
-        </div>
-        <ExternalLink size={12} className="text-dark-600 group-hover:text-primary-400 transition-colors shrink-0" />
-      </Link>
-    );
-  }
+  const voteCount = (resource.upvotes || []).length;
 
   return (
-    <div className="auth-card p-0 overflow-hidden flex flex-col border-dark-800 hover:border-primary-500/30 transition-all duration-300 group relative">
+    <div
+      className="group"
+      style={{
+        position: 'relative',
+        background: 'rgb(var(--color-dark-900) / 0.6)',
+        border: '0.5px solid rgb(var(--color-dark-700) / 0.5)',
+        borderRadius: '16px',
+        padding: '18px 20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s',
+        cursor: 'default',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = 'rgba(92,124,250,0.35)';
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'rgb(var(--color-dark-700) / 0.5)';
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = 'none';
+      }}
+    >
       {/* Toast */}
       {toast && (
-        <div className={`absolute top-3 left-1/2 -translate-x-1/2 z-50 px-3 py-1.5 rounded-full text-xs font-medium shadow-lg ${
-          toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-primary-500 text-white'
-        }`}>
+        <div style={{
+          position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 50, padding: '5px 14px', borderRadius: '20px', fontSize: '12px',
+          fontWeight: 500, background: toast.type === 'error' ? '#ef4444' : 'rgb(var(--color-primary-500))',
+          color: '#fff', whiteSpace: 'nowrap', pointerEvents: 'none',
+        }}>
           {toast.msg}
         </div>
       )}
 
       {/* Delete confirm overlay */}
       {showConfirmDelete && (
-        <div className="absolute inset-0 z-40 bg-dark-950/90 backdrop-blur-sm flex flex-col items-center justify-center gap-3 p-4 rounded-2xl">
-          <AlertTriangle size={24} className="text-red-400" />
-          <p className="text-dark-100 text-sm font-medium text-center">Delete this resource?</p>
-          <p className="text-dark-400 text-xs text-center">This action cannot be undone.</p>
-          <div className="flex gap-2 w-full">
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 40, borderRadius: '16px',
+          background: 'rgba(13,15,20,0.92)', backdropFilter: 'blur(4px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', gap: '10px', padding: '20px',
+        }}>
+          <AlertTriangle size={22} style={{ color: '#f87171' }} />
+          <p style={{ color: 'rgb(var(--color-dark-100))', fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>
+            Delete this resource?
+          </p>
+          <p style={{ color: 'rgb(var(--color-dark-400))', fontSize: '12px', textAlign: 'center' }}>
+            This action cannot be undone.
+          </p>
+          <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
             <button onClick={() => setShowConfirmDelete(false)}
-              className="flex-1 py-2 rounded-xl bg-dark-800 border border-dark-700 text-dark-200 text-sm hover:bg-dark-700 transition-colors">
+              style={{ flex: 1, padding: '8px', borderRadius: '10px', fontSize: '13px',
+                background: 'rgb(var(--color-dark-800))', border: '0.5px solid rgb(var(--color-dark-600))',
+                color: 'rgb(var(--color-dark-200))', cursor: 'pointer' }}>
               Cancel
             </button>
             <button onClick={handleDelete} disabled={deleting}
-              className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-400 transition-colors disabled:opacity-50">
-              {deleting ? 'Deleting...' : 'Delete'}
+              style={{ flex: 1, padding: '8px', borderRadius: '10px', fontSize: '13px',
+                background: '#ef4444', border: 'none', color: '#fff', cursor: 'pointer',
+                opacity: deleting ? 0.6 : 1 }}>
+              {deleting ? 'Deleting…' : 'Delete'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Card header */}
-      <div className="p-4 pb-3 flex items-start gap-3">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${fileInfo.bg} shrink-0`}>
-          <FileIcon size={20} className={fileInfo.color} />
+      {/* ── Row 1: Icon + badges + title ── */}
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+        {/* File type icon */}
+        <div style={{
+          width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
+          background: fileStyle.bg, border: `1px solid ${fileStyle.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <FileIcon size={22} style={{ color: fileStyle.iconColor }} />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium uppercase tracking-wide ${catColor}`}>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Badges row */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
+            <span style={{
+              fontSize: '10px', padding: '2px 8px', borderRadius: '20px', fontWeight: 600,
+              letterSpacing: '0.3px', textTransform: 'uppercase',
+              background: catStyle.bg, color: catStyle.color, border: `0.5px solid ${catStyle.border}`,
+            }}>
               {resource.category?.replace('-', ' ')}
             </span>
             {resource.subject && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-dark-800 border border-dark-700 text-dark-400">
+              <span style={{
+                fontSize: '10px', padding: '2px 8px', borderRadius: '20px',
+                background: 'rgb(var(--color-dark-800))', border: '0.5px solid rgb(var(--color-dark-700))',
+                color: 'rgb(var(--color-dark-400))',
+              }}>
                 {resource.subject}
               </span>
             )}
             {resource.isExamPeriod && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-400/10 border border-orange-400/20 text-orange-400 font-medium">
+              <span style={{
+                fontSize: '10px', padding: '2px 8px', borderRadius: '20px',
+                background: 'rgba(251,146,60,0.1)', border: '0.5px solid rgba(251,146,60,0.2)',
+                color: '#fb923c', fontWeight: 600,
+              }}>
                 📝 Exam
               </span>
             )}
           </div>
-          <Link to={`/resources/${resource._id}`}
-            className="text-dark-100 font-semibold text-sm leading-snug hover:text-primary-300 transition-colors line-clamp-2 block">
+
+          {/* Title */}
+          <Link
+            to={`/resources/${resource._id}`}
+            style={{
+              fontSize: '14px', fontWeight: 600, lineHeight: '1.35',
+              color: 'rgb(var(--color-dark-100))', textDecoration: 'none',
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+            className="hover:text-primary-300 transition-colors"
+          >
             {resource.title}
           </Link>
         </div>
       </div>
 
-      {/* Breadcrumb */}
-      <div className="px-4 pb-2">
-        <p className="text-[10px] text-dark-500 truncate">
-          {[resource.department, resource.year && `Year ${resource.year}`, resource.semester && `Sem ${resource.semester}`, resource.subject]
-            .filter(Boolean).join(' → ')}
-        </p>
-      </div>
+      {/* ── Row 2: Breadcrumb ── */}
+      <p style={{
+        fontSize: '11px', color: 'rgb(var(--color-dark-500))',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {[
+          resource.department,
+          resource.year && `Year ${resource.year}`,
+          resource.semester && `Sem ${resource.semester}`,
+          resource.subject,
+        ].filter(Boolean).join(' › ')}
+      </p>
 
-      {/* Uploader */}
-      <div className="px-4 pb-3 flex items-center gap-2">
+      {/* ── Row 3: Uploader + date ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         {uploaderAvatar ? (
           <img src={uploaderAvatar} alt={uploaderName}
-            className="w-5 h-5 rounded-full object-cover border border-dark-700" />
+            style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgb(var(--color-dark-700))' }} />
         ) : (
-          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-primary-600 to-primary-400 flex items-center justify-center text-[9px] text-white font-bold">
+          <div style={{
+            width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
+            background: 'linear-gradient(135deg, rgb(var(--color-primary-600)), rgb(var(--color-primary-400)))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '9px', color: '#fff', fontWeight: 700,
+          }}>
             {uploaderName.charAt(0)}
           </div>
         )}
         <Link to={`/profile/${resource.uploadedBy?._id}`}
-          className="text-[11px] text-dark-400 hover:text-primary-300 transition-colors truncate" onClick={e => e.stopPropagation()}>
+          onClick={e => e.stopPropagation()}
+          style={{ fontSize: '11px', color: 'rgb(var(--color-dark-400))', textDecoration: 'none', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          className="hover:text-primary-300 transition-colors">
           {uploaderName}
         </Link>
-        <span className="text-dark-600 text-[10px] ml-auto shrink-0">{uploadedDate}</span>
+        <span style={{ fontSize: '10px', color: 'rgb(var(--color-dark-600))', flexShrink: 0 }}>
+          {uploadedDate}
+        </span>
       </div>
 
-      {/* Stats */}
-      <div className="px-4 pb-3 flex items-center gap-3">
-        <span className="flex items-center gap-1 text-dark-500 text-xs">
-          <Download size={11} />{resource.downloadCount || 0}
+      {/* ── Row 4: Stats ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'rgb(var(--color-dark-400))' }}>
+          <Download size={12} style={{ opacity: 0.7 }} />{resource.downloadCount || 0}
         </span>
-        <span className="flex items-center gap-1 text-dark-500 text-xs">
-          <ThumbsUp size={11} />{(resource.upvotes || []).length}
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'rgb(var(--color-dark-400))' }}>
+          <ThumbsUp size={12} style={{ opacity: 0.7 }} />{voteCount}
         </span>
-        <StarRating rating={resource.qualityRating || 0} count={resource.ratingCount || 0} />
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'rgb(var(--color-dark-400))' }}>
+          <Star size={11} style={{ color: '#facc15' }} />
+          {resource.qualityRating > 0 ? resource.qualityRating.toFixed(1) : '—'}
+        </span>
       </div>
 
-      {/* Actions */}
-      <div className="px-3 pb-3 pt-2 border-t border-dark-800 flex items-center gap-1 flex-wrap">
-        <button onClick={handlePreview}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-dark-100 text-xs transition-colors">
-          <Eye size={12} />Preview
-        </button>
-        <button onClick={handleDownload} disabled={downloading}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-primary-500/20 text-dark-300 hover:text-primary-300 text-xs transition-colors disabled:opacity-50">
-          <Download size={12} />{downloading ? '...' : 'Download'}
-        </button>
-        <button onClick={handleVote}
-          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
-            isVoted ? 'bg-primary-500/15 text-primary-400 border border-primary-500/30' : 'bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-dark-100'
-          }`}>
-          <ThumbsUp size={12} className={isVoted ? 'fill-primary-400' : ''} />
-          {(resource.upvotes || []).length}
-        </button>
-        <button onClick={handleSave}
-          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
-            isSaved ? 'bg-yellow-400/10 text-yellow-400' : 'bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-dark-100'
-          }`}>
-          <Bookmark size={12} className={isSaved ? 'fill-yellow-400' : ''} />
-        </button>
-        <button onClick={handleShare}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-dark-300 hover:text-dark-100 text-xs transition-colors">
-          <Share2 size={12} />
-        </button>
+      {/* ── Row 5: Action buttons (visible on hover) ── */}
+      <div
+        style={{
+          borderTop: '0.5px solid rgb(var(--color-dark-800))',
+          paddingTop: '10px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '6px',
+          opacity: 0,
+          transition: 'opacity 0.18s',
+        }}
+        className="group-hover:!opacity-100"
+      >
+        {/* Preview */}
+        <ActionBtn icon={<Eye size={12} />} label="Preview" onClick={e => { e.stopPropagation(); if (onPreview) onPreview(resource); }} />
+        {/* Download */}
+        <ActionBtn icon={<Download size={12} />} label={downloading ? '…' : 'Download'} onClick={handleDownload} disabled={downloading} />
+        {/* Upvote */}
+        <ActionBtn
+          icon={<ThumbsUp size={12} style={isVoted ? { fill: 'rgb(var(--color-primary-400))' } : {}} />}
+          label={String(voteCount)}
+          onClick={handleVote}
+          active={isVoted}
+          activeStyle={{ background: 'rgba(92,124,250,0.12)', borderColor: 'rgba(92,124,250,0.3)', color: 'rgb(var(--color-primary-300))' }}
+        />
+        {/* Save */}
+        <ActionBtn
+          icon={<Bookmark size={12} style={isSaved ? { fill: '#facc15' } : {}} />}
+          onClick={handleSave}
+          active={isSaved}
+          activeStyle={{ background: 'rgba(250,204,21,0.08)', borderColor: 'rgba(250,204,21,0.2)', color: '#facc15' }}
+        />
+        {/* Share */}
+        <ActionBtn icon={<Share2 size={12} />} onClick={handleShare} />
+        {/* Delete (owner only) */}
         {isOwner && (
-          <button onClick={(e) => { e.stopPropagation(); setShowConfirmDelete(true); }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-red-500/15 text-dark-300 hover:text-red-400 text-xs transition-colors ml-auto">
-            <Trash2 size={12} />
-          </button>
+          <ActionBtn
+            icon={<Trash2 size={12} />}
+            onClick={e => { e.stopPropagation(); setShowConfirmDelete(true); }}
+            style={{ marginLeft: 'auto' }}
+            hoverStyle={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.25)' }}
+          />
         )}
       </div>
     </div>
+  );
+}
+
+/* ── Small reusable action button ── */
+function ActionBtn({ icon, label, onClick, disabled, active, activeStyle, style, hoverStyle }) {
+  const base = {
+    display: 'flex', alignItems: 'center', gap: '4px',
+    padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
+    border: '0.5px solid rgb(var(--color-dark-700) / 0.5)',
+    background: 'rgb(var(--color-dark-800) / 0.5)',
+    color: 'rgb(var(--color-dark-400))', cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.5 : 1, transition: 'all 0.15s', ...style,
+  };
+  const merged = active ? { ...base, ...activeStyle } : base;
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={merged}
+      onMouseEnter={e => {
+        if (!active && hoverStyle) Object.assign(e.currentTarget.style, hoverStyle);
+        if (!active && !hoverStyle) {
+          e.currentTarget.style.borderColor = 'rgb(var(--color-dark-600))';
+          e.currentTarget.style.color = 'rgb(var(--color-dark-100))';
+        }
+      }}
+      onMouseLeave={e => Object.assign(e.currentTarget.style, merged)}
+    >
+      {icon}{label}
+    </button>
   );
 }

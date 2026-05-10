@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, BookOpen, Loader2, ArrowUpDown, Clock, Download, Star, Zap } from 'lucide-react';
+import { Plus, BookOpen, Loader2, Clock, Download, Star, Zap } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { getResources } from '../../api/resource.api';
@@ -10,35 +10,39 @@ import UploadResourceModal from '../../components/resources/UploadResourceModal'
 import PDFPreviewModal from '../../components/resources/PDFPreviewModal';
 import ResourceRightPanel from '../../components/resources/ResourceRightPanel';
 
+/* ── Constants ── */
 const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest', icon: Clock },
-  { value: 'most-downloaded', label: 'Most Downloaded', icon: Download },
-  { value: 'top-rated', label: 'Top Rated', icon: Star },
-  { value: 'exam-relevant', label: 'Exam Relevant', icon: Zap },
+  { value: 'newest', label: 'Newest', Icon: Clock },
+  { value: 'most-downloaded', label: 'Most Downloaded', Icon: Download },
+  { value: 'top-rated', label: 'Top Rated', Icon: Star },
+  { value: 'exam-relevant', label: 'Exam Relevant', Icon: Zap },
 ];
 
-const TABS = ['all', 'my-uploads', 'bookmarked'];
-const TAB_LABELS = { all: 'All Resources', 'my-uploads': 'My Uploads', bookmarked: 'Bookmarked' };
+const TABS = [
+  { key: 'all', label: 'All Resources' },
+  { key: 'my-uploads', label: 'My Uploads' },
+  { key: 'bookmarked', label: 'Bookmarked' },
+];
 
 export default function ResourcesPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ── State derived from URL params ──
-  const getParam = (key, def = '') => searchParams.get(key) || def;
+  const getP = (k, def = '') => searchParams.get(k) || def;
 
+  /* ── Filter / sort / tab state ── */
   const [filters, setFilters] = useState({
-    department: getParam('department'),
-    year: getParam('year'),
-    semester: getParam('semester'),
-    subject: getParam('subject'),
-    category: getParam('category'),
+    department: getP('department'),
+    year: getP('year'),
+    semester: getP('semester'),
+    subject: getP('subject'),
+    category: getP('category'),
   });
-  const [search, setSearch] = useState(getParam('search'));
-  const [sort, setSort] = useState(getParam('sort', 'newest'));
-  const [activeTab, setActiveTab] = useState(getParam('tab', 'all'));
+  const [search, setSearch] = useState(getP('search'));
+  const [sort, setSort] = useState(getP('sort', 'newest'));
+  const [activeTab, setActiveTab] = useState(getP('tab', 'all'));
 
-  // ── Resource state ──
+  /* ── Resources state ── */
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -46,118 +50,81 @@ export default function ResourcesPage() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // ── Bookmarks (stored in localStorage for now) ──
+  /* ── Bookmarks (localStorage) ── */
   const [savedIds, setSavedIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem('resource_bookmarks') || '[]'); }
     catch { return []; }
   });
 
-  // ── Modals ──
+  /* ── Modals ── */
   const [uploadOpen, setUploadOpen] = useState(false);
   const [previewResource, setPreviewResource] = useState(null);
 
-  // ── Infinite scroll sentinel ──
   const sentinelRef = useRef(null);
   const observerRef = useRef(null);
-
-  // ── Debounce search ──
   const searchTimerRef = useRef(null);
 
-  // ── Sync URL params ──
+  /* ── Sync URL params ── */
   const syncParams = useCallback((overrides = {}) => {
     const combined = { ...filters, search, sort, tab: activeTab, ...overrides };
-    const params = {};
-    Object.entries(combined).forEach(([k, v]) => { if (v && v !== 'newest' && v !== 'all') params[k] = v; });
-    if (combined.sort && combined.sort !== 'newest') params.sort = combined.sort;
-    setSearchParams(params, { replace: true });
+    const p = {};
+    Object.entries(combined).forEach(([k, v]) => {
+      if (v && v !== 'newest' && v !== 'all') p[k] = v;
+    });
+    if (combined.sort && combined.sort !== 'newest') p.sort = combined.sort;
+    setSearchParams(p, { replace: true });
   }, [filters, search, sort, activeTab, setSearchParams]);
 
-  // ── Fetch resources ──
+  /* ── Fetch ── */
   const fetchResources = useCallback(async (pg = 1, append = false) => {
-    if (pg === 1) setLoading(true);
-    else setLoadingMore(true);
-
+    if (pg === 1) setLoading(true); else setLoadingMore(true);
     try {
-      const params = {
-        ...filters,
-        search: search || undefined,
-        sort,
-        page: pg,
-        limit: 12,
-      };
-
-      // Tab-specific filters
+      const params = { ...filters, search: search || undefined, sort, page: pg, limit: 12 };
       if (activeTab === 'my-uploads' && user) params.uploadedBy = user._id;
-      if (activeTab === 'bookmarked') {
-        // Client-side filter — fetch all and filter by savedIds
-        if (savedIds.length === 0) {
-          setResources([]); setTotalPages(1); setHasMore(false);
-          setLoading(false); setLoadingMore(false);
-          return;
-        }
+      if (activeTab === 'bookmarked' && savedIds.length === 0) {
+        setResources([]); setTotalPages(1); setHasMore(false);
+        return;
       }
-
       const res = await getResources(params);
       const data = res.data?.data;
       let items = data?.items || [];
-
-      // Client-side bookmark filter
-      if (activeTab === 'bookmarked') {
-        items = items.filter(r => savedIds.includes(r._id));
-      }
-
-      if (append) {
-        setResources(prev => [...prev, ...items]);
-      } else {
-        setResources(items);
-      }
+      if (activeTab === 'bookmarked') items = items.filter(r => savedIds.includes(r._id));
+      setResources(append ? prev => [...prev, ...items] : items);
       setTotalPages(data?.totalPages || 1);
       setHasMore(pg < (data?.totalPages || 1));
       setPage(pg);
     } catch { /* silent */ }
-    finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
+    finally { setLoading(false); setLoadingMore(false); }
   }, [filters, search, sort, activeTab, user, savedIds]);
 
-  // ── Initial + filter change fetch ──
   useEffect(() => {
     setPage(1);
     fetchResources(1, false);
     syncParams();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, sort, activeTab]);
 
-  // ── Debounced search ──
   const handleSearch = (val) => {
     setSearch(val);
     clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => {
-      setPage(1);
-      fetchResources(1, false);
+      setPage(1); fetchResources(1, false);
     }, 400);
   };
 
-  // ── Infinite scroll ──
+  /* ── Infinite scroll ── */
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
     if (!sentinelRef.current || !hasMore) return;
-
     observerRef.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !loadingMore) {
-        fetchResources(page + 1, true);
-      }
+      if (entries[0].isIntersecting && !loadingMore) fetchResources(page + 1, true);
     }, { threshold: 0.5 });
-
     observerRef.current.observe(sentinelRef.current);
     return () => observerRef.current?.disconnect();
   }, [hasMore, loadingMore, page, fetchResources]);
 
-  // ── Handlers ──
-  const handleFiltersChange = (overrides) => {
-    setFilters(prev => ({ ...prev, ...overrides }));
-  };
+  /* ── Handlers ── */
+  const handleFiltersChange = (overrides) => setFilters(prev => ({ ...prev, ...overrides }));
 
   const handleSaveToggle = (id, wasSaved) => {
     setSavedIds(prev => {
@@ -167,9 +134,7 @@ export default function ResourcesPage() {
     });
   };
 
-  const handleDeleted = (id) => {
-    setResources(prev => prev.filter(r => r._id !== id));
-  };
+  const handleDeleted = (id) => setResources(prev => prev.filter(r => r._id !== id));
 
   const handleQuickFilter = (key, value) => {
     if (key === 'tab') { setActiveTab(value || 'all'); return; }
@@ -182,137 +147,192 @@ export default function ResourcesPage() {
     fetchResources(1, false);
   };
 
+  /* ── Right panel (injected into fixed slot) ── */
+  const rightPanel = (
+    <ResourceRightPanel
+      onQuickFilter={handleQuickFilter}
+      activeFilters={{ ...filters, tab: activeTab }}
+    />
+  );
+
   return (
-    <DashboardLayout hideWidgets>
-      <div className="flex gap-6">
-        {/* ── Main content ── */}
-        <div className="flex-1 min-w-0">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-dark-100 flex items-center gap-2">
-                <span className="p-2 bg-primary-500/10 rounded-xl text-xl border border-primary-500/20">📚</span>
-                Academic Resources
-              </h1>
-              <p className="text-dark-400 text-sm mt-1">Study materials, past papers & notes shared by your peers</p>
-            </div>
-            <button
-              onClick={() => setUploadOpen(true)}
-              className="btn-primary w-auto px-5 py-2.5 flex items-center gap-2 text-sm shrink-0">
-              <Plus size={16} />Upload Resource
-            </button>
+    <DashboardLayout rightContent={rightPanel}>
+
+      {/* ── Page header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '28px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {/* Accent line + title row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '3px', height: '28px', borderRadius: '3px', background: 'linear-gradient(180deg, rgb(var(--color-primary-400)), rgb(var(--color-primary-600)))', flexShrink: 0 }} />
+            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'rgb(var(--color-dark-100))', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{
+                width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(92,124,250,0.1)', border: '0.5px solid rgba(92,124,250,0.2)', fontSize: '18px',
+              }}>
+                📚
+              </span>
+              Academic Resources
+            </h1>
           </div>
-
-          {/* Filters */}
-          <ResourceFilters
-            filters={filters}
-            onChange={handleFiltersChange}
-            onSearch={handleSearch}
-            searchValue={search}
-          />
-
-          {/* Tabs + Sort */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-            {/* Tabs */}
-            <div className="flex bg-dark-800 border border-dark-700/50 rounded-xl p-1 gap-0.5">
-              {TABS.map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === tab
-                      ? 'bg-primary-500 text-white shadow-md shadow-primary-500/20'
-                      : 'text-dark-400 hover:text-dark-100'
-                  }`}>
-                  {TAB_LABELS[tab]}
-                </button>
-              ))}
-            </div>
-
-            {/* Sort buttons */}
-            <div className="flex items-center gap-1.5">
-              <ArrowUpDown size={12} className="text-dark-500" />
-              {SORT_OPTIONS.map(opt => {
-                const Icon = opt.icon;
-                return (
-                  <button key={opt.value} onClick={() => setSort(opt.value)}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      sort === opt.value
-                        ? 'bg-primary-500/15 text-primary-400 border border-primary-500/30'
-                        : 'text-dark-500 hover:text-dark-200 hover:bg-dark-800'
-                    }`}>
-                    <Icon size={11} />{opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Content */}
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <Loader2 size={32} className="text-primary-500 animate-spin" />
-              <p className="text-dark-400 text-sm">Loading resources...</p>
-            </div>
-          ) : resources.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {resources.map(r => (
-                  <ResourceCard
-                    key={r._id}
-                    resource={r}
-                    savedIds={savedIds}
-                    onSaveToggle={handleSaveToggle}
-                    onDeleted={handleDeleted}
-                    onPreview={setPreviewResource}
-                  />
-                ))}
-              </div>
-
-              {/* Infinite scroll sentinel */}
-              <div ref={sentinelRef} className="h-4" />
-
-              {loadingMore && (
-                <div className="flex justify-center py-6">
-                  <Loader2 size={24} className="text-primary-500 animate-spin" />
-                </div>
-              )}
-
-              {!hasMore && resources.length > 0 && (
-                <p className="text-center text-dark-600 text-xs py-6">
-                  — No more resources —
-                </p>
-              )}
-            </>
-          ) : (
-            <div className="auth-card py-24 flex flex-col items-center justify-center text-center border-dashed border-dark-700 bg-dark-900/40">
-              <div className="w-20 h-20 bg-dark-800 rounded-3xl flex items-center justify-center mb-6 border border-dark-700">
-                <BookOpen size={40} className="text-dark-500" />
-              </div>
-              <h3 className="text-dark-100 font-bold text-xl mb-2">No resources found</h3>
-              <p className="text-dark-400 text-sm max-w-sm mx-auto leading-relaxed mb-6">
-                {activeTab === 'bookmarked'
-                  ? "You haven't saved any resources yet."
-                  : activeTab === 'my-uploads'
-                  ? "You haven't uploaded any resources yet."
-                  : "No resources match your current filters. Try adjusting them or be the first to upload!"}
-              </p>
-              <button onClick={() => setUploadOpen(true)}
-                className="btn-primary w-auto px-6 py-2.5 text-sm flex items-center gap-2">
-                <Plus size={16} />Be the first to upload
-              </button>
-            </div>
-          )}
+          <p style={{ fontSize: '13px', color: 'rgb(var(--color-dark-400))', marginLeft: '13px' }}>
+            Study materials, past papers &amp; notes shared by your peers
+          </p>
         </div>
 
-        {/* ── Right panel ── */}
-        <aside className="hidden xl:block w-72 shrink-0">
-          <div className="sticky top-24">
-            <ResourceRightPanel
-              onQuickFilter={handleQuickFilter}
-              activeFilters={{ ...filters, tab: activeTab }}
-            />
-          </div>
-        </aside>
+        {/* Upload button */}
+        <button
+          onClick={() => setUploadOpen(true)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '10px 18px', borderRadius: '10px', fontSize: '14px', fontWeight: 600,
+            background: 'linear-gradient(135deg, rgb(var(--color-primary-600)), rgb(var(--color-primary-500)))',
+            color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            boxShadow: '0 4px 14px rgba(92,124,250,0.25)', transition: 'box-shadow 0.2s, transform 0.15s',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(92,124,250,0.4)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.boxShadow = '0 4px 14px rgba(92,124,250,0.25)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          <Plus size={16} strokeWidth={2.5} />Upload Resource
+        </button>
       </div>
+
+      {/* ── Filters ── */}
+      <ResourceFilters
+        filters={filters}
+        onChange={handleFiltersChange}
+        onSearch={handleSearch}
+        searchValue={search}
+      />
+
+      {/* ── Tabs + Sort on one line ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px', borderRadius: '12px', background: 'rgb(var(--color-dark-800) / 0.6)', border: '0.5px solid rgb(var(--color-dark-700) / 0.5)' }}>
+          {TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
+                border: 'none', cursor: 'pointer', transition: 'all 0.18s',
+                background: activeTab === tab.key ? 'rgb(var(--color-primary-500))' : 'transparent',
+                color: activeTab === tab.key ? '#fff' : 'rgb(var(--color-dark-400))',
+                boxShadow: activeTab === tab.key ? '0 2px 8px rgba(92,124,250,0.25)' : 'none',
+              }}
+              onMouseEnter={e => { if (activeTab !== tab.key) e.currentTarget.style.color = 'rgb(var(--color-dark-100))'; }}
+              onMouseLeave={e => { if (activeTab !== tab.key) e.currentTarget.style.color = 'rgb(var(--color-dark-400))'; }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          {SORT_OPTIONS.map(opt => {
+            const Icon = opt.Icon;
+            const active = sort === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setSort(opt.value)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                  padding: '6px 11px', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
+                  border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                  background: active ? 'rgba(92,124,250,0.12)' : 'transparent',
+                  color: active ? 'rgb(var(--color-primary-300))' : 'rgb(var(--color-dark-500))',
+                  borderBottom: active ? '2px solid rgb(var(--color-primary-400))' : '2px solid transparent',
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'rgb(var(--color-dark-200))'; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'rgb(var(--color-dark-500))'; }}
+              >
+                <Icon size={11} />{opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Content ── */}
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '96px 0', gap: '12px' }}>
+          <Loader2 size={32} style={{ color: 'rgb(var(--color-primary-500))', animation: 'spin 1s linear infinite' }} />
+          <p style={{ fontSize: '14px', color: 'rgb(var(--color-dark-400))' }}>Loading resources…</p>
+        </div>
+      ) : resources.length > 0 ? (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', alignItems: 'stretch' }}>
+            {resources.map(r => (
+              <ResourceCard
+                key={r._id}
+                resource={r}
+                savedIds={savedIds}
+                onSaveToggle={handleSaveToggle}
+                onDeleted={handleDeleted}
+                onPreview={setPreviewResource}
+              />
+            ))}
+          </div>
+
+          <div ref={sentinelRef} style={{ height: '16px' }} />
+
+          {loadingMore && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
+              <Loader2 size={22} style={{ color: 'rgb(var(--color-primary-500))', animation: 'spin 1s linear infinite' }} />
+            </div>
+          )}
+
+          {!hasMore && resources.length > 0 && (
+            <p style={{ textAlign: 'center', fontSize: '12px', color: 'rgb(var(--color-dark-600))', padding: '24px 0' }}>
+              — No more resources —
+            </p>
+          )}
+        </>
+      ) : (
+        /* Empty state */
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '96px 24px', textAlign: 'center',
+          border: '1px dashed rgb(var(--color-dark-700) / 0.4)',
+          borderRadius: '16px', background: 'rgb(var(--color-dark-900) / 0.3)',
+        }}>
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '20px',
+            background: 'rgb(var(--color-dark-800))', border: '0.5px solid rgb(var(--color-dark-700))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px',
+          }}>
+            <BookOpen size={30} style={{ color: 'rgb(var(--color-dark-500))' }} />
+          </div>
+          <h3 style={{ fontSize: '16px', fontWeight: 500, color: 'rgb(var(--color-dark-200))', marginBottom: '8px' }}>
+            No resources found
+          </h3>
+          <p style={{ fontSize: '13px', color: 'rgb(var(--color-dark-500))', marginBottom: '20px', maxWidth: '320px', lineHeight: '1.5' }}>
+            {activeTab === 'bookmarked' ? "You haven't saved any resources yet."
+              : activeTab === 'my-uploads' ? "You haven't uploaded any resources yet."
+              : 'Be the first to upload study material for your peers.'}
+          </p>
+          <button
+            onClick={() => setUploadOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: 600,
+              background: 'linear-gradient(135deg, rgb(var(--color-primary-600)), rgb(var(--color-primary-500)))',
+              color: '#fff', border: 'none', cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(92,124,250,0.2)',
+            }}
+          >
+            <Plus size={15} />Upload Resource
+          </button>
+        </div>
+      )}
 
       {/* Modals */}
       <UploadResourceModal
