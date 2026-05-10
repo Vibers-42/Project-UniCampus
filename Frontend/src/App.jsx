@@ -28,6 +28,15 @@ import StudyGroupDetailPage from './pages/studyGroups/StudyGroupDetailPage';
 // Messages
 import MessagesPage from './pages/messages/MessagesPage';
 
+// Teammates
+import TeammatesPage from './pages/teammates/TeammatesPage';
+import TeammatesDetailPage from './pages/teammates/TeammatesDetailPage';
+import CreateTeammatesPage from './pages/teammates/CreateTeammatesPage';
+
+// Portfolio
+import PortfolioPage from './pages/portfolio/PortfolioPage';
+import EditPortfolioPage from './pages/portfolio/EditPortfolioPage';
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -57,6 +66,14 @@ export default function App() {
           <Route path="/study-groups/:id" element={<ProtectedRoute><StudyGroupDetailPage /></ProtectedRoute>} />
 
           <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+
+          <Route path="/teammates" element={<ProtectedRoute><TeammatesPage /></ProtectedRoute>} />
+          <Route path="/teammates/create" element={<ProtectedRoute><CreateTeammatesPage /></ProtectedRoute>} />
+          <Route path="/teammates/:id" element={<ProtectedRoute><TeammatesDetailPage /></ProtectedRoute>} />
+
+          <Route path="/portfolio/me" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
+          <Route path="/portfolio/edit" element={<ProtectedRoute><EditPortfolioPage /></ProtectedRoute>} />
+          <Route path="/portfolio/:rollNumber" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
 
           {/* ── Default redirect ── */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
