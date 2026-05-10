@@ -27,8 +27,8 @@ import ResourcesPage from './pages/resources/ResourcesPage';
 import ResourceDetailPage from './pages/resources/ResourceDetailPage';
 
 // Study Groups
-import StudyGroupsPage from './pages/studyGroups/StudyGroupsPage';
-import StudyGroupDetailPage from './pages/studyGroups/StudyGroupDetailPage';
+import StudyGroupsPage from './pages/StudyGroupsPage';
+import GroupDetailPage from './pages/GroupDetailPage';
 
 // Messages
 import MessagesPage from './pages/messages/MessagesPage';
@@ -86,7 +86,10 @@ export default function App() {
           <Route path="/resources/:id" element={<ProtectedRoute><ResourceDetailPage /></ProtectedRoute>} />
 
           <Route path="/study-groups" element={<ProtectedRoute><StudyGroupsPage /></ProtectedRoute>} />
-          <Route path="/study-groups/:id" element={<ProtectedRoute><StudyGroupDetailPage /></ProtectedRoute>} />
+          <Route path="/study-groups/:id" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
+
+          <Route path="/groups" element={<ProtectedRoute><StudyGroupsPage /></ProtectedRoute>} />
+          <Route path="/groups/:id" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
 
           <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
