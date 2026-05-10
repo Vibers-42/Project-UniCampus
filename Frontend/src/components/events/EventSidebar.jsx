@@ -107,8 +107,9 @@ export default function EventSidebar() {
   };
 
   return (
-    <div className="p-6 h-full w-full">
-      {/* ── 1. Your Event Stats ── */}
+    <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:block overflow-y-auto">
+      <div className="p-6 h-full">
+        {/* ── 1. Your Event Stats ── */}
       <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
         <h3 className="text-sm font-semibold text-dark-200 mb-3">Your Event Stats</h3>
         {loading ? (
@@ -234,5 +235,6 @@ export default function EventSidebar() {
         )}
       </div>
     </div>
+    </aside>
   );
 }

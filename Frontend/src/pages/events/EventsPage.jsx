@@ -52,12 +52,8 @@ export default function EventsPage() {
   const canCreateEvent = ['admin', 'clubAdmin', 'organizer', 'coordinator', 'club_lead'].includes(user?.role);
 
   return (
-    // hideWidgets=true removes the default RightWidgets panel so we can render our own
-    <DashboardLayout hideWidgets>
-      <div className="flex gap-6 items-start">
-        {/* ── Main Content ── */}
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <DashboardLayout hideWidgets rightSidebar={<EventSidebar />}>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
               <h1 className="text-3xl font-bold text-dark-100">Campus Events</h1>
               <p className="text-dark-400 mt-1">Discover and join upcoming events at UniCampus.</p>
@@ -167,16 +163,6 @@ export default function EventsPage() {
               <p className="text-dark-400 mt-2">Try selecting a different category or check back later.</p>
             </div>
           )}
-        </div>
-
-        {/* ── Event Sidebar (right column, visible on xl+) ── */}
-        <aside className="w-80 flex-shrink-0 hidden xl:block sticky top-8 h-[calc(100vh-4rem)] overflow-y-auto hide-scrollbar -mr-4 lg:-mr-8">
-          <div className="bg-dark-950 border-l border-dark-800 min-h-full">
-             <EventSidebar />
-          </div>
-        </aside>
-      </div>
     </DashboardLayout>
   );
 }
-
