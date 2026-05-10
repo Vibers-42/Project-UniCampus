@@ -24,6 +24,7 @@ import OpportunityDetailPage from './pages/opportunities/OpportunityDetailPage';
 
 // Resources
 import ResourcesPage from './pages/resources/ResourcesPage';
+import ResourceDetailPage from './pages/resources/ResourceDetailPage';
 
 // Study Groups
 import StudyGroupsPage from './pages/studyGroups/StudyGroupsPage';
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/opportunities/:id" element={<ProtectedRoute><OpportunityDetailPage /></ProtectedRoute>} />
 
           <Route path="/resources" element={<ProtectedRoute><ResourcesPage /></ProtectedRoute>} />
+          <Route path="/resources/:id" element={<ProtectedRoute><ResourceDetailPage /></ProtectedRoute>} />
 
           <Route path="/study-groups" element={<ProtectedRoute><StudyGroupsPage /></ProtectedRoute>} />
           <Route path="/study-groups/:id" element={<ProtectedRoute><StudyGroupDetailPage /></ProtectedRoute>} />
