@@ -1,15 +1,30 @@
-/** @file opportunities.model.js — Opportunity Board Schema (scaffold) */
 const mongoose = require('mongoose');
-const oppsSchema = new mongoose.Schema({
-  type:           { type: String, required: true, enum: ['internship', 'referral', 'hackathon', 'research', 'club'] },
-  postedBy:       { type: String, required: true, index: true }, // email ref
-  title:          { type: String, required: true, trim: true, maxlength: 200 },
-  description:    { type: String, trim: true, maxlength: 3000, default: '' },
-  skillsRequired: { type: [String], default: [] },
-  deadline:       { type: Date, index: true },
-  applicationUrl: { type: String, default: '' },
-  applicants:     { type: [String], default: [] }, // emails
-  isVerified:     { type: Boolean, default: false },
-}, { timestamps: true });
-oppsSchema.index({ title: 'text', description: 'text' });
-module.exports = mongoose.model('Opportunity', oppsSchema);
+
+const opportunitiesSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true, trim: true, maxlength: 200 },
+    description: { type: String, required: true, trim: true, maxlength: 3000 },
+    type: { 
+      type: String, 
+      required: true, 
+      enum: ['Internship', 'Placement Drive', 'Club Recruitment', 'Campus Ambassador', 'Alumni Referral', 'Workshop Opportunity', 'Certification Program', 'Hackathon Opportunity', 'Other'] 
+    },
+    organization: { type: String, required: true, trim: true },
+    eligibility: { type: String, trim: true, default: '' },
+    deadline: { type: Date },
+    applyLink: { type: String, default: '' },
+    tags: { type: [String], default: [] },
+    banner: { type: String, default: '' },
+    postedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    campusId: { type: String, trim: true, default: 'main', index: true },
+    
+    alumniName: { type: String, default: '' },
+    role: { type: String, default: '' },
+    referralStatus: { type: String, enum: ['Open', 'Closed'], default: 'Open' }
+  },
+  { timestamps: true }
+);
+
+opportunitiesSchema.index({ title: 'text', description: 'text', organization: 'text' });
+
+module.exports = mongoose.model('Opportunity', opportunitiesSchema);

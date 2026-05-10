@@ -1,12 +1,25 @@
-/** @file opportunities.controller.js */
 const catchAsync = require('../../middleware/catchAsync');
 const { sendSuccess } = require('../../shared/responses/apiResponse');
 const svc = require('./opportunities.service');
 
-const create  = catchAsync(async (req, res) => { const r = await svc.create(req.body, req.user.email); sendSuccess(res, r, 'Opportunity posted', 201); });
-const getAll  = catchAsync(async (req, res) => { const r = await svc.getAll(req.query); sendSuccess(res, r, `Found ${r.length} opportunities`); });
-const getById = catchAsync(async (req, res) => { const r = await svc.getById(req.params.id); sendSuccess(res, r, 'Opportunity fetched'); });
-const apply   = catchAsync(async (req, res) => { const r = await svc.apply(req.params.id, req.user.email); sendSuccess(res, r, 'Application submitted'); });
-const remove  = catchAsync(async (req, res) => { await svc.remove(req.params.id, req.user.email); sendSuccess(res, null, 'Opportunity deleted'); });
+const create = catchAsync(async (req, res) => {
+  const opportunity = await svc.create(req.body, req.user.id);
+  sendSuccess(res, opportunity, 'Opportunity created successfully', 201);
+});
 
-module.exports = { create, getAll, getById, apply, remove };
+const getAll = catchAsync(async (req, res) => {
+  const { items, pagination } = await svc.getAll(req.query);
+  sendSuccess(res, { items, pagination }, `Found ${pagination.totalCount} opportunities`);
+});
+
+const getById = catchAsync(async (req, res) => {
+  const opportunity = await svc.getById(req.params.id);
+  sendSuccess(res, opportunity, 'Opportunity fetched');
+});
+
+const remove = catchAsync(async (req, res) => {
+  const result = await svc.remove(req.params.id, req.user.id, req.user.role);
+  sendSuccess(res, null, result.message);
+});
+
+module.exports = { create, getAll, getById, remove };
