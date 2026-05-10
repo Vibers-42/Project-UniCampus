@@ -18,6 +18,10 @@ import EventsPage from './pages/events/EventsPage';
 import EventDetailPage from './pages/events/EventDetailPage';
 import CreateEventPage from './pages/events/CreateEventPage';
 
+// Study Groups
+import StudyGroupsPage from './pages/studyGroups/StudyGroupsPage';
+import StudyGroupDetailPage from './pages/studyGroups/StudyGroupDetailPage';
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -39,6 +43,9 @@ export default function App() {
           <Route path="/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
           <Route path="/events/create" element={<ProtectedRoute><CreateEventPage /></ProtectedRoute>} />
           <Route path="/events/:id" element={<ProtectedRoute><EventDetailPage /></ProtectedRoute>} />
+
+          <Route path="/study-groups" element={<ProtectedRoute><StudyGroupsPage /></ProtectedRoute>} />
+          <Route path="/study-groups/:id" element={<ProtectedRoute><StudyGroupDetailPage /></ProtectedRoute>} />
 
           {/* ── Default redirect ── */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
