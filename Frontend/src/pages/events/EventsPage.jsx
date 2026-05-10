@@ -170,8 +170,10 @@ export default function EventsPage() {
         </div>
 
         {/* ── Event Sidebar (right column, visible on xl+) ── */}
-        <aside className="w-72 flex-shrink-0 hidden xl:block sticky top-24">
-          <EventSidebar />
+        <aside className="w-80 flex-shrink-0 hidden xl:block sticky top-8 h-[calc(100vh-4rem)] overflow-y-auto hide-scrollbar -mr-4 lg:-mr-8">
+          <div className="bg-dark-950 border-l border-dark-800 min-h-full">
+             <EventSidebar />
+          </div>
         </aside>
       </div>
     </DashboardLayout>
