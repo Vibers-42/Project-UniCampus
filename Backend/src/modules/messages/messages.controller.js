@@ -7,7 +7,7 @@
  */
 
 const messagesService = require('./messages.service');
-const catchAsync = require('../../shared/utils/catchAsync');
+const catchAsync = require('../../middleware/catchAsync');
 const AppError = require('../../shared/utils/AppError');
 const { validationResult } = require('express-validator');
 
