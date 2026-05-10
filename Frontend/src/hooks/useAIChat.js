@@ -47,34 +47,54 @@ export function useAIChat() {
   /** Send a message (new or follow-up) */
   const sendMessage = useCallback(async (message, conversationId = null) => {
     setSending(true);
+
+    // Optimistically show the user message immediately
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: message, createdAt: new Date().toISOString() },
+    ]);
+
     try {
-      const res = await api.post('/ai-chatbot/ask', { message, conversationId });
+      // IMPORTANT: never send conversationId: null — express-validator treats
+      // null as a present-but-invalid MongoDB ID and returns 422.
+      const payload = { message };
+      if (conversationId) payload.conversationId = conversationId;
+
+      console.log('[useAIChat] POST /ai-chatbot/ask', payload);
+      const res = await api.post('/ai-chatbot/ask', payload);
+      console.log('[useAIChat] Response:', res.data);
+
       const { conversationId: returnedId, reply } = res.data.data;
 
-      // If it was a new conversation, load the full conversation
+      // Append the AI reply
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: reply, createdAt: new Date().toISOString() },
+      ]);
+
+      // Set active conversation if new
       if (!conversationId) {
-        await loadConversation(returnedId);
-        await fetchConversations(); // refresh sidebar
+        // Fetch the saved conversation doc so title etc are correct
+        const convRes = await api.get(`/ai-chatbot/conversations/${returnedId}`);
+        setActiveConversation(convRes.data.data.conversation);
+        fetchConversations(); // refresh sidebar
       } else {
-        // Append user + assistant messages locally for instant feedback
-        setMessages(prev => [
-          ...prev,
-          { role: 'user', content: message, createdAt: new Date().toISOString() },
-          { role: 'assistant', content: reply, createdAt: new Date().toISOString() },
-        ]);
-        // Refresh sidebar to update the order
         fetchConversations();
       }
 
       setError(null);
       return { conversationId: returnedId, reply };
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      console.error('[useAIChat] API error:', err?.response?.data || err?.message || err);
+      // Remove the optimistically added user message on failure
+      setMessages(prev => prev.slice(0, -1));
+      setError(err?.response?.data?.message || err?.message || 'Something went wrong');
       throw err;
     } finally {
       setSending(false);
     }
-  }, [loadConversation, fetchConversations]);
+  }, [fetchConversations]);
+
 
   /** Delete a single conversation */
   const deleteConversation = useCallback(async (conversationId) => {

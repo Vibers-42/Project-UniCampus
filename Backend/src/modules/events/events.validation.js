@@ -34,9 +34,7 @@ const validateCreate = [
       return true;
     }),
 
-  body('registrationDeadline')
-    .optional()
-    .isISO8601().withMessage('Registration deadline must be a valid ISO 8601 format'),
+
 
   body('venue')
     .optional()
@@ -53,19 +51,14 @@ const validateCreate = [
     .isIn(['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'club', 'other'])
     .withMessage('Invalid category'),
 
-  body('registrationLink')
-    .optional()
-    .trim()
-    .isURL().withMessage('Registration link must be a valid URL'),
+
 
   body('bannerUrl')
     .optional()
     .trim()
     .isURL().withMessage('Banner URL must be a valid URL'),
 
-  body('maxParticipants')
-    .optional()
-    .isInt({ min: 0 }).withMessage('Max participants must be a non-negative number'),
+
 
   body('tags')
     .optional()
@@ -84,11 +77,9 @@ const validateUpdate = [
   body('title').optional().trim().notEmpty().withMessage('Title cannot be empty').isLength({ max: 200 }),
   body('startDate').optional().isISO8601(),
   body('endDate').optional().isISO8601(),
-  body('registrationDeadline').optional().isISO8601(),
   body('venue').optional().trim().isLength({ max: 200 }),
   body('description').optional().trim().isLength({ max: 2000 }),
   body('category').optional().isIn(['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'club', 'other']),
-  body('maxParticipants').optional().isInt({ min: 0 }),
   body('status').optional().isIn(['upcoming', 'ongoing', 'completed', 'cancelled']),
   body('tags').optional().isArray({ max: 10 }),
 ];
@@ -103,17 +94,9 @@ const validateQuery = [
   query('category').optional().isIn(['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'club', 'other']),
 ];
 
-const validateRsvp = [
-  body('status')
-    .optional()
-    .isIn(['interested', 'registered', 'attending'])
-    .withMessage('Status must be interested, registered, or attending'),
-];
-
 module.exports = {
   validateCreate,
   validateUpdate,
   validateId,
   validateQuery,
-  validateRsvp,
 };

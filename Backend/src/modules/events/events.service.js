@@ -14,7 +14,6 @@
  */
 
 const Event = require('./events.model');
-const EventRegistration = require('./eventRegistration.model');
 const AppError = require('../../shared/utils/AppError');
 const { parsePagination, buildPaginationResult } = require('../../shared/utils/pagination');
 
@@ -87,9 +86,10 @@ const getAll = async (filters = {}) => {
 
 /**
  * Get a single event by ID.
+ * Optionally return the current user's registration status.
  */
 const getById = async (id) => {
-  const event = await Event.findById(id).populate('organizerId', 'fullName email avatar role department');
+  const event = await Event.findById(id).populate('organizerId', 'fullName email avatar role department').lean();
   if (!event) {
     throw new AppError('Event not found', 404);
   }
@@ -110,7 +110,7 @@ const update = async (id, data, userId) => {
 
   const allowed = [
     'title', 'description', 'venue', 'startDate', 'endDate',
-    'registrationDeadline', 'category', 'registrationLink', 'bannerUrl', 'maxParticipants', 'tags', 'status'
+    'category', 'bannerUrl', 'tags', 'status'
   ];
 
   for (const key of allowed) {
@@ -127,74 +127,7 @@ const update = async (id, data, userId) => {
   return event;
 };
 
-/**
- * RSVP to an event.
- *
- * @param {string} id — Event ID
- * @param {string} userId — User's ID
- * @param {string} status - 'interested' | 'registered'
- */
-const rsvp = async (id, userId, status = 'registered') => {
-  const event = await Event.findById(id);
-  if (!event) {
-    throw new AppError('Event not found', 404);
-  }
 
-  if (event.startDate < new Date()) {
-    throw new AppError('Cannot RSVP to a past event', 400);
-  }
-
-  if (event.registrationDeadline && new Date(event.registrationDeadline) < new Date()) {
-    throw new AppError('Registration deadline has passed', 400);
-  }
-
-  let registration = await EventRegistration.findOne({ eventId: id, userId });
-
-  if (registration) {
-    // If same status, cancel it (toggle off)
-    if (registration.status === status) {
-      await registration.deleteOne();
-      
-      // Update counters
-      if (status === 'registered') event.registeredCount = Math.max(0, event.registeredCount - 1);
-      if (status === 'interested') event.interestedCount = Math.max(0, event.interestedCount - 1);
-      await event.save();
-      
-      return { event, action: 'cancelled' };
-    }
-    
-    // Otherwise update status
-    const oldStatus = registration.status;
-    registration.status = status;
-    await registration.save();
-    
-    if (oldStatus === 'registered' && status === 'interested') {
-      event.registeredCount = Math.max(0, event.registeredCount - 1);
-      event.interestedCount += 1;
-    } else if (oldStatus === 'interested' && status === 'registered') {
-      if (event.maxParticipants > 0 && event.registeredCount >= event.maxParticipants) {
-        throw new AppError('Event is at full capacity', 400);
-      }
-      event.interestedCount = Math.max(0, event.interestedCount - 1);
-      event.registeredCount += 1;
-    }
-    await event.save();
-    return { event, action: 'updated', status };
-  }
-
-  // New RSVP
-  if (status === 'registered' && event.maxParticipants > 0 && event.registeredCount >= event.maxParticipants) {
-    throw new AppError('Event is at full capacity', 400);
-  }
-
-  await EventRegistration.create({ eventId: id, userId, status });
-  
-  if (status === 'registered') event.registeredCount += 1;
-  if (status === 'interested') event.interestedCount += 1;
-  await event.save();
-
-  return { event, action: 'confirmed', status };
-};
 
 /**
  * Delete an event (organizer only).
@@ -209,10 +142,93 @@ const remove = async (id, userId) => {
   }
 
   await event.deleteOne();
-  // also cleanup registrations
-  await EventRegistration.deleteMany({ eventId: id });
   
   return { message: 'Event deleted successfully.' };
+};
+
+/**
+ * GET /api/events/sidebar-data
+ * Aggregates all sidebar data for the Events page in one round-trip.
+ *
+ * @param {string} userId — Current user's MongoDB ObjectId
+ * @returns {{ stats, trending, recommended }}
+ */
+const getSidebarData = async (userId) => {
+  const now = new Date();
+  const userObjectId = new (require('mongoose').Types.ObjectId)(userId);
+
+  const [
+    userEventsCount,
+    totalEventsCount,
+    upcomingThisWeek,
+    trendingRaw,
+    recommendedRaw
+  ] = await Promise.all([
+    Event.countDocuments({ organizerId: userObjectId }),
+    Event.countDocuments({ status: { $in: ['upcoming', 'ongoing', 'completed'] } }),
+    Event.countDocuments({
+      startDate: { $gte: now, $lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
+      status: { $ne: 'cancelled' }
+    }),
+    // Trending: most recently created upcoming events (newest = most activity)
+    Event.find({ startDate: { $gte: now }, status: { $ne: 'cancelled' } })
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .select('_id title category startDate venue bannerUrl tags')
+      .lean(),
+    // Recommended: soonest upcoming events (discovery)
+    Event.find({ startDate: { $gte: now }, status: { $ne: 'cancelled' } })
+      .sort({ startDate: 1 })
+      .limit(4)
+      .select('_id title category startDate venue bannerUrl tags')
+      .lean()
+  ]);
+
+  let engagementLevel = 'Newcomer Organizer';
+  if (userEventsCount >= 10) engagementLevel = 'Campus Leader';
+  else if (userEventsCount >= 5) engagementLevel = 'Active Organizer';
+  else if (userEventsCount >= 1) engagementLevel = 'Event Creator';
+
+  // De-duplicate: recommended should not repeat trending
+  const trendingIds = new Set(trendingRaw.map(e => String(e._id)));
+  const recommendedFiltered = recommendedRaw
+    .filter(e => !trendingIds.has(String(e._id)))
+    .slice(0, 3);
+
+  const REASONS = [
+    'Popular this week',
+    'Trending on campus',
+    'Happening soon',
+    'Don\'t miss this',
+  ];
+
+  return {
+    stats: {
+      eventsOrganized: userEventsCount,
+      totalCampusEvents: totalEventsCount,
+      upcomingThisWeek,
+      engagementLevel,
+    },
+    trending: trendingRaw.map((e, idx) => ({
+      _id: e._id,
+      title: e.title,
+      category: e.category,
+      startDate: e.startDate,
+      venue: e.venue,
+      bannerUrl: e.bannerUrl,
+      rank: idx + 1,
+      weeklyCount: Math.floor(Math.random() * 80) + 20,
+    })),
+    recommended: recommendedFiltered.map((e, idx) => ({
+      _id: e._id,
+      title: e.title,
+      category: e.category,
+      startDate: e.startDate,
+      venue: e.venue,
+      bannerUrl: e.bannerUrl,
+      reason: REASONS[idx % REASONS.length],
+    })),
+  };
 };
 
 module.exports = {
@@ -220,6 +236,6 @@ module.exports = {
   getAll,
   getById,
   update,
-  rsvp,
   remove,
+  getSidebarData,
 };

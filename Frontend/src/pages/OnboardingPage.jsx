@@ -1,13 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../config/api';
 
 export default function OnboardingPage() {
-  // eslint-disable-next-line no-unused-vars
-  const { user, logout } = useAuth();
-  // eslint-disable-next-line no-unused-vars
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [form, setForm] = useState({
     bio: '',

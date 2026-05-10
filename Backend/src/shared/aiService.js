@@ -1,158 +1,122 @@
 /**
- * @file aiService.js — LLM API Wrapper (Provider-Agnostic)
+ * @file aiService.js — Groq LLM Integration
  *
- * SINGLE RESPONSIBILITY:
- *   Sends prompts to an LLM and returns the text response. The caller
- *   (aiChatbot module) has no idea which provider is being used.
- *
- * EXPORTS:
- *   askAI(systemPrompt, userMessage, conversationHistory)
+ * Uses the official groq-sdk (OpenAI-compatible API).
+ * Model: llama-3.3-70b-versatile (fast, high quality, generous free tier)
  *
  * RETURN SHAPE:
- *   { success: true, reply: string }
- *   { success: false, reply: string }  (on error — reply contains error message)
- *
- * PROVIDER ROUTING:
- *   Checks env.LLM_PROVIDER to decide which API to call:
- *     'claude'  → Anthropic Claude API
- *     'gemini'  → Google Gemini API
- *
- *   Swapping providers = changing LLM_PROVIDER and LLM_API_KEY in .env.
- *   Nothing else in the app changes. Not a single import. Not a single line.
+ *   { success: true,  reply: string }
+ *   { success: false, reply: string }
  *
  * USAGE:
  *   const { askAI } = require('../shared/aiService');
- *
- *   const result = await askAI(
- *     'You are a helpful university assistant.',
- *     'What events are happening this week?',
- *     [{ role: 'user', content: 'Hi' }, { role: 'assistant', content: 'Hello!' }]
- *   );
- *
- *   if (result.success) {
- *     console.log(result.reply);
- *   }
+ *   const result = await askAI(systemPrompt, userMessage, history);
  */
 
-const env = require('../config/env');
+const Groq = require('groq-sdk');
 const logger = require('./utils/logger');
 
-/**
- * Send a prompt to the configured LLM provider.
- *
- * @param {string} systemPrompt — System-level instructions for the LLM
- * @param {string} userMessage — The user's current message
- * @param {Array<{role: string, content: string}>} [conversationHistory=[]]
- *   Previous messages for context. Each entry: { role: 'user'|'assistant', content: string }
- * @returns {Promise<{success: boolean, reply: string}>}
- */
-const askAI = async (systemPrompt, userMessage, conversationHistory = []) => {
-  const provider = env.LLM_PROVIDER.toLowerCase();
-  const apiKey = env.LLM_API_KEY;
+// ── Startup diagnostic ──────────────────────────────────────
+const _key = process.env.GROQ_API_KEY || '';
+console.log('[aiService] Provider: Groq');
+console.log('[aiService] GROQ_API_KEY:', _key ? `${_key.slice(0, 10)}... (loaded)` : 'MISSING!');
 
-  if (!provider || !apiKey) {
-    return {
-      success: false,
-      reply: 'AI service is not configured. Set LLM_PROVIDER and LLM_API_KEY in .env.',
-    };
+// ── Singleton Groq client ───────────────────────────────────
+// Instantiated once on module load so the connection is reused.
+let _groqClient = null;
+const getGroq = () => {
+  if (!_groqClient) {
+    _groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return _groqClient;
+};
+
+/**
+ * Send a message to Groq and return the reply.
+ *
+ * @param {string} systemPrompt
+ * @param {string} userMessage
+ * @param {Array<{role:'user'|'assistant', content:string}>} history
+ *   All saved messages for this conversation, including the just-saved current user msg.
+ * @returns {Promise<{success:boolean, reply:string}>}
+ */
+const askAI = async (systemPrompt, userMessage, history = []) => {
+  const apiKey = process.env.GROQ_API_KEY || '';
+
+  if (!apiKey) {
+    logger.error('[aiService] GROQ_API_KEY is not set');
+    return { success: false, reply: 'AI not configured — GROQ_API_KEY missing in .env.' };
   }
 
-  logger.debug(`AI Service: sending prompt to "${provider}"`);
-
   try {
-    switch (provider) {
-      case 'claude':
-        return await callClaude(apiKey, systemPrompt, userMessage, conversationHistory);
-      case 'gemini':
-        return await callGemini(apiKey, systemPrompt, userMessage, conversationHistory);
-      default:
-        return {
-          success: false,
-          reply: `Unsupported LLM provider: "${provider}". Supported: claude, gemini.`,
-        };
+    const reply = await callGroq(systemPrompt, userMessage, history);
+    return { success: true, reply };
+  } catch (err) {
+    const msg = err?.message || '';
+    logger.error('[aiService] Groq error:', msg);
+    console.error('[aiService] Full Groq error:', err);
+
+    if (msg.includes('429') || msg.includes('rate') || msg.includes('quota')) {
+      return {
+        success: false,
+        reply: 'UniBot is busy right now — rate limit reached. Please wait a moment and try again.',
+      };
     }
-  } catch (error) {
-    logger.error(`AI Service error (${provider}):`, error.message);
-    return {
-      success: false,
-      reply: 'AI service encountered an error. Please try again later.',
-    };
+    if (msg.includes('401') || msg.includes('invalid_api_key') || msg.includes('Authentication')) {
+      return {
+        success: false,
+        reply: 'AI configuration error — invalid API key. Please check GROQ_API_KEY.',
+      };
+    }
+
+    return { success: false, reply: 'AI service encountered an error. Please try again.' };
   }
 };
 
-// ──────────────────────────────────────────
-// PROVIDER IMPLEMENTATIONS (internal only)
-// ──────────────────────────────────────────
-
 /**
- * Call Anthropic's Claude API.
+ * Internal: Call Groq chat completions API.
+ *
+ * Groq uses the OpenAI chat format:
+ *   { role: 'system' | 'user' | 'assistant', content: string }
+ *
+ * The history passed in includes the just-saved current user message as the
+ * last entry — we exclude it and send it as the final user turn instead.
  */
-const callClaude = async (apiKey, systemPrompt, userMessage, history) => {
-  // Build messages array: history + current user message
+const callGroq = async (systemPrompt, userMessage, history) => {
+  console.log('[callGroq] Building messages...');
+
+  // Exclude the last history entry (the current user msg — just saved to DB).
+  // It becomes the final 'user' turn we explicitly pass.
+  const priorTurns = history.slice(0, -1);
+
   const messages = [
-    ...history.map((msg) => ({ role: msg.role, content: msg.content })),
+    // System instruction
+    { role: 'system', content: systemPrompt },
+    // Prior conversation turns
+    ...priorTurns.map((m) => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.content,
+    })),
+    // Current user message
     { role: 'user', content: userMessage },
   ];
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-3-haiku-20240307',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages,
-    }),
+  console.log('[callGroq] Sending to Groq, total turns:', messages.length);
+
+  const groq = getGroq();
+  const completion = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages,
+    temperature: 0.7,
+    max_tokens: 1024,
   });
 
-  const data = await response.json();
+  const reply = completion.choices[0]?.message?.content;
 
-  if (!response.ok) {
-    logger.error('Claude API error:', data);
-    throw new Error(data.error?.message || 'Claude API call failed');
-  }
+  if (!reply) throw new Error('Groq returned empty response');
 
-  return { success: true, reply: data.content[0].text };
+  console.log('[callGroq] Success — reply length:', reply.length);
+  return reply;
 };
 
-/**
- * Call Google's Gemini API.
- */
-const callGemini = async (apiKey, systemPrompt, userMessage, history) => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
-
-  // Build contents array with history + current message
-  const contents = [
-    ...history.map((msg) => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }],
-    })),
-    { role: 'user', parts: [{ text: userMessage }] },
-  ];
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents,
-    }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    logger.error('Gemini API error:', data);
-    throw new Error(data.error?.message || 'Gemini API call failed');
-  }
-
-  return { success: true, reply: data.candidates[0].content.parts[0].text };
-};
-
-module.exports = {
-  askAI,
-};
+module.exports = { askAI };

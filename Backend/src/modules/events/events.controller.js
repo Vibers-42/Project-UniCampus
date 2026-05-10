@@ -17,7 +17,7 @@ const getAll = catchAsync(async (req, res) => {
 });
 
 const getById = catchAsync(async (req, res) => {
-  const event = await svc.getById(req.params.id);
+  const event = await svc.getById(req.params.id, req.user.id);
   sendSuccess(res, event, 'Event fetched');
 });
 
@@ -26,16 +26,17 @@ const update = catchAsync(async (req, res) => {
   sendSuccess(res, event, 'Event updated successfully');
 });
 
-const rsvp = catchAsync(async (req, res) => {
-  const status = req.body.status || 'registered'; // default to registered
-  const { event, action } = await svc.rsvp(req.params.id, req.user.id, status);
-  const message = action === 'cancelled' ? 'RSVP cancelled' : `RSVP ${action}`;
-  sendSuccess(res, { event, action }, message);
-});
+
 
 const remove = catchAsync(async (req, res) => {
   const result = await svc.remove(req.params.id, req.user.id);
   sendSuccess(res, null, result.message);
 });
 
-module.exports = { create, getAll, getById, update, rsvp, remove };
+const getSidebarData = catchAsync(async (req, res) => {
+  const data = await svc.getSidebarData(req.user.id);
+  sendSuccess(res, data, 'Sidebar data fetched');
+});
+
+module.exports = { create, getAll, getById, update, remove, getSidebarData };
+

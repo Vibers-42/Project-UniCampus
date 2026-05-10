@@ -10,7 +10,10 @@ const svc = require('./aiChatbot.service');
 
 /** POST /ai-chatbot/ask — Send a message and get AI response */
 const ask = catchAsync(async (req, res) => {
-  const result = await svc.ask(req.user.email, req.body.message, req.body.conversationId);
+  const { message, conversationId, subject } = req.body;
+  console.log('[aiChatbot] ask hit — user:', req.user.email, '| convId:', conversationId || 'NEW');
+  const result = await svc.ask(req.user.email, message, conversationId, subject);
+  console.log('[aiChatbot] ask success — convId:', result.conversationId);
   sendSuccess(res, result, 'AI response received');
 });
 
