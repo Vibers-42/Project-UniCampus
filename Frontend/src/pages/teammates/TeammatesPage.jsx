@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, Users, Target, UserPlus } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -11,7 +11,7 @@ export default function TeammatesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setIsLoading(true);
       const url = `/teammates?status=open${categoryFilter !== 'all' ? `&category=${categoryFilter}` : ''}${searchQuery ? `&search=${searchQuery}` : ''}`;
@@ -22,11 +22,12 @@ export default function TeammatesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [categoryFilter, searchQuery]);
 
   useEffect(() => {
-    fetchProjects();
-  }, [categoryFilter]);
+    const timer = setTimeout(fetchProjects, 0);
+    return () => clearTimeout(timer);
+  }, [categoryFilter, fetchProjects]);
 
   const handleSearch = (e) => {
     e.preventDefault();

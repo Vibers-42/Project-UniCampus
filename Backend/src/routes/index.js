@@ -69,6 +69,33 @@ router.use('/study-groups', studyGroupsRoutes);
 const chatbotRoutes = require('../modules/aiChatbot/aiChatbot.routes');
 router.use('/ai-chatbot', chatbotRoutes);
 
+// ── /api/v1/ai/chat alias — POST { message, subject } → { reply }
+// Lightweight alias for the AI solver page. Maps to the same aiChatbot handler.
+const { Router: AliasRouter } = require('express');
+const aiAliasRouter = AliasRouter();
+const { protect } = require('../middleware/auth.middleware');
+const catchAsync = require('../middleware/catchAsync');
+const { sendSuccess } = require('../shared/responses/apiResponse');
+const aiSvc = require('../modules/aiChatbot/aiChatbot.service');
+const { body } = require('express-validator');
+const validate = require('../middleware/validation.middleware');
+
+aiAliasRouter.post(
+  '/chat',
+  protect,
+  [
+    body('message').trim().notEmpty().withMessage('Message is required').isLength({ max: 4000 }),
+    body('subject').optional().trim().isLength({ max: 100 }),
+  ],
+  validate,
+  catchAsync(async (req, res) => {
+    const { message, subject } = req.body;
+    const result = await aiSvc.ask(req.user.email, message, null, subject);
+    sendSuccess(res, { reply: result.reply }, 'AI response received');
+  })
+);
+router.use('/ai', aiAliasRouter);
+
 const notificationsRoutes = require('../modules/notifications/notifications.routes');
 router.use('/notifications', notificationsRoutes);
 

@@ -43,19 +43,24 @@ export default function MessagesPage() {
 
   // Initial load
   useEffect(() => {
-    fetchConversations();
+    const timer = setTimeout(fetchConversations, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   // Poll for messages when a conversation is active
   useEffect(() => {
     let interval;
+    let initialTimer;
     if (activeConversation) {
-      fetchMessages(activeConversation._id);
+      initialTimer = setTimeout(() => fetchMessages(activeConversation._id), 0);
       interval = setInterval(() => {
         fetchMessages(activeConversation._id, false); // false means don't set loading state
       }, 5000); // Poll every 5s
     }
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(initialTimer);
+    };
   }, [activeConversation]);
 
   // Auto-scroll

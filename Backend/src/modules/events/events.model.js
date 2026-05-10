@@ -67,10 +67,6 @@ const eventsSchema = new mongoose.Schema(
       type: Date, // Optional — for multi-day events
     },
 
-    registrationDeadline: {
-      type: Date,
-    },
-
     category: {
       type: String,
       enum: {
@@ -81,29 +77,9 @@ const eventsSchema = new mongoose.Schema(
       index: true,
     },
 
-    registrationLink: {
-      type: String, // External link if needed
-      default: '',
-    },
-
     bannerUrl: {
       type: String,
       default: '', // Cloudinary URL
-    },
-
-    maxParticipants: {
-      type: Number,
-      default: 0, // 0 = unlimited
-    },
-
-    interestedCount: {
-      type: Number,
-      default: 0,
-    },
-
-    registeredCount: {
-      type: Number,
-      default: 0,
     },
 
     status: {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Users, Plus, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, Plus, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import EventSidebar from '../../components/events/EventSidebar';
@@ -126,11 +126,7 @@ export default function EventsPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between pt-4 border-t border-dark-800">
-                    <div className="flex items-center gap-2 text-dark-500 text-xs">
-                      <Users size={14} />
-                      <span>{event.registeredCount} Registered</span>
-                    </div>
+                  <div className="flex items-center justify-end pt-4 border-t border-dark-800">
                     <span className="text-primary-400 flex items-center text-sm font-medium group-hover:translate-x-1 transition-transform">
                       Details <ChevronRight size={16} />
                     </span>

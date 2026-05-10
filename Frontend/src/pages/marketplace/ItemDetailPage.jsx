@@ -9,8 +9,7 @@ import {
   Clock, 
   Trash2, 
   CheckCircle2, 
-  AlertCircle,
-  ExternalLink
+  AlertCircle
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useMarketplace } from '../../hooks/useMarketplace';
@@ -35,7 +34,7 @@ export default function ItemDetailPage() {
       }
     };
     fetchItem();
-  }, [id]);
+  }, [id, getItem]);
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to remove this listing?')) return;

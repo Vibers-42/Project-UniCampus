@@ -14,26 +14,27 @@ const { AIConversation, AIMessage } = require('./aiChatbot.model');
 const { askAI } = require('../../shared/aiService');
 const AppError = require('../../shared/utils/AppError');
 
-const SYSTEM_PROMPT = `You are UniBot, the AI Doubt Solver for UniCampus — a university student platform.
+const SYSTEM_PROMPT = `You are UniBot, the AI academic assistant for UniCampus students.
 
-Your purpose:
-- Help students with academic doubts, coding problems, project guidance
-- Provide clear explanations with examples
-- Support markdown formatting and code blocks in responses
-- Be concise but thorough
+Help students with:
+- programming
+- DBMS
+- DSA
+- operating systems
+- coding bugs
+- debugging
+- interview preparation
+- academic concepts
 
-Rules:
-- Always format code in proper markdown code blocks with language tags
-- Use bullet points and headers for structured explanations
-- Stay focused on academic/educational topics
-- Be encouraging and supportive
-- If asked something non-academic, gently redirect to academic topics`;
+Explain concepts clearly, accurately, and simply.
+
+Keep responses concise, practical, and student-friendly.`;
 
 /**
  * Send a message in a conversation (or create a new one).
  * Returns { conversationId, reply }
  */
-const ask = async (email, message, conversationId = null) => {
+const ask = async (email, message, conversationId = null, subject = null) => {
   let conversation;
 
   if (conversationId) {
@@ -61,8 +62,13 @@ const ask = async (email, message, conversationId = null) => {
 
   const history = recentMessages.map(m => ({ role: m.role, content: m.content }));
 
+  // Append subject context to system prompt if provided
+  const systemPrompt = subject
+    ? `${SYSTEM_PROMPT}\n\nCurrent Subject: ${subject}`
+    : SYSTEM_PROMPT;
+
   // Call AI provider
-  const aiResult = await askAI(SYSTEM_PROMPT, message, history);
+  const aiResult = await askAI(systemPrompt, message, history);
 
   const reply = aiResult.success
     ? aiResult.reply

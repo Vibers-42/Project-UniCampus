@@ -26,7 +26,7 @@ export default function CreatePost({ onSubmit }) {
     try {
       const url = await uploadImage(file);
       setImages(prev => [...prev, url]);
-    } catch (err) {
+    } catch {
       alert('Failed to upload image. (Ensure Cloudinary preset is configured)');
     } finally {
       setLoading(false);

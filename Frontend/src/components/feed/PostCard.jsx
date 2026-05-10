@@ -11,7 +11,7 @@ export default function PostCard({ post, onLike }) {
     setLikesCount(prevLiked ? prevCount - 1 : prevCount + 1);
     try {
       await onLike(post._id);
-    } catch (err) {
+    } catch {
       setIsLiked(prevLiked);
       setLikesCount(prevCount);
     }

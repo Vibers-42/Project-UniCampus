@@ -1,331 +1,297 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Flame, TrendingUp, Trophy, Calendar, Users, Sparkles, Plus, Check, ClipboardList } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import {
+  Flame, TrendingUp, Trophy, Sparkles,
+  Calendar, MapPin, ChevronRight, Star
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { format } from 'date-fns';
 import api from '../../config/api';
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
-
-function formatCountdown(dateStr) {
-  const diff = new Date(dateStr) - new Date();
-  if (diff <= 0) return 'Ongoing';
-  const d = Math.floor(diff / 86400000);
-  const h = Math.floor((diff % 86400000) / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-
-function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr);
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-const CATEGORY_COLORS = {
-  hackathon: 'text-orange-400 bg-orange-400/10',
-  workshop: 'text-blue-400 bg-blue-400/10',
-  seminar: 'text-purple-400 bg-purple-400/10',
-  cultural: 'text-pink-400 bg-pink-400/10',
-  sports: 'text-green-400 bg-green-400/10',
-  club: 'text-yellow-400 bg-yellow-400/10',
-  meetup: 'text-cyan-400 bg-cyan-400/10',
-  other: 'text-dark-400 bg-dark-400/10',
+// ─── Category Color Map ──────────────────────────────────────────────────────
+const CAT = {
+  hackathon:  { bg: 'bg-orange-500/15', text: 'text-orange-400',  border: 'border-orange-500/20' },
+  workshop:   { bg: 'bg-blue-500/15',   text: 'text-blue-400',    border: 'border-blue-500/20'   },
+  seminar:    { bg: 'bg-purple-500/15', text: 'text-purple-400',  border: 'border-purple-500/20' },
+  cultural:   { bg: 'bg-pink-500/15',   text: 'text-pink-400',    border: 'border-pink-500/20'   },
+  sports:     { bg: 'bg-green-500/15',  text: 'text-green-400',   border: 'border-green-500/20'  },
+  club:       { bg: 'bg-yellow-500/15', text: 'text-yellow-400',  border: 'border-yellow-500/20' },
+  meetup:     { bg: 'bg-cyan-500/15',   text: 'text-cyan-400',    border: 'border-cyan-500/20'   },
+  other:      { bg: 'bg-dark-700/40',   text: 'text-dark-400',    border: 'border-dark-600/30'   },
 };
+const catStyle = (cat) => CAT[cat] || CAT.other;
 
-function CategoryBadge({ category }) {
-  const cls = CATEGORY_COLORS[category] || CATEGORY_COLORS.other;
+// ─── Category Chip ───────────────────────────────────────────────────────────
+function CategoryChip({ category }) {
+  const s = catStyle(category);
   return (
-    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${cls}`}>
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide border ${s.bg} ${s.text} ${s.border}`}>
       {category}
     </span>
   );
 }
 
-// ─── Stat Row ───────────────────────────────────────────────────────────────
-function StatRow({ label, value }) {
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+function Skeleton({ h = 'h-4', w = 'w-full' }) {
+  return <div className={`${h} ${w} bg-dark-800/60 rounded-lg animate-pulse`} />;
+}
+
+// ─── Section Header ──────────────────────────────────────────────────────────
+function SectionHeader({ icon: Icon, iconBg, iconText, iconGlow, label }) {
   return (
-    <div className="flex items-center justify-between py-1.5">
-      <span className="text-xs text-dark-400">{label}</span>
-      <span className="text-xs font-semibold text-dark-100">{value}</span>
+    <div className="flex items-center gap-3 mb-4">
+      <div
+        className={`w-8 h-8 rounded-xl flex items-center justify-center border ${iconBg} ${iconText}`}
+        style={{ boxShadow: iconGlow }}
+      >
+        <Icon size={14} />
+      </div>
+      <h3 className="text-sm font-semibold text-dark-200">{label}</h3>
     </div>
   );
 }
 
-// ─── Skeleton ───────────────────────────────────────────────────────────────
-function SkeletonBlock({ h = 'h-4', w = 'w-full', mb = '' }) {
-  return <div className={`${h} ${w} ${mb} bg-dark-800/60 rounded animate-pulse`} />;
-}
-
-// ─── Main Component ─────────────────────────────────────────────────────────
-
+// ─── Main Component ──────────────────────────────────────────────────────────
 export default function EventSidebar() {
-  const [data, setData] = useState(null);
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [countdown, setCountdown] = useState({});
 
-  const fetchData = useCallback(async () => {
-    try {
-      const res = await api.get('/events/sidebar-data');
-      setData(res.data.data);
-    } catch (err) {
-      console.error('[EventSidebar] Failed to load sidebar data', err);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    let active = true;
+    api.get('/events/sidebar-data')
+      .then(res => { if (active) setData(res.data.data); })
+      .catch(err => console.error('[EventSidebar]', err))
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleRSVP = async (e, eventId, status) => {
-    e.preventDefault();
-    try {
-      await api.post(`/events/${eventId}/rsvp`, { status });
-      fetchData(); // Refresh sidebar data immediately to show updated stats/lists
-    } catch (err) {
-      console.error('[EventSidebar] RSVP failed', err);
-    }
+  const ENGAGEMENT_COLORS = {
+    'Newcomer Organizer': 'text-dark-400',
+    'Event Creator':      'text-blue-400',
+    'Active Organizer':   'text-primary-400',
+    'Campus Leader':      'text-orange-400',
   };
 
-  // Countdown tick — every 60s, only update state if component still mounted
-  useEffect(() => {
-    if (!data?.upcoming?.length) return;
-    const tick = () => {
-      const next = {};
-      data.upcoming.forEach(({ event }) => {
-        if (event?._id) next[event._id] = formatCountdown(event.startDate);
-      });
-      setCountdown(next);
-    };
-    tick();
-    const id = setInterval(tick, 60000);
-    return () => clearInterval(id);
-  }, [data]);
-
-  const engagementBadgeColor = {
-    Newcomer: 'text-dark-400',
-    Explorer: 'text-blue-400',
-    'Rising Star': 'text-yellow-400',
-    'Active Participant': 'text-primary-400',
-    'Campus Leader': 'text-orange-400',
-  };
+  const RANK_STYLES = [
+    { num: 'text-orange-400', ring: 'border-orange-500/40', bg: 'bg-orange-500/10' },
+    { num: 'text-slate-400',  ring: 'border-slate-500/30',  bg: 'bg-slate-500/10'  },
+    { num: 'text-amber-700',  ring: 'border-amber-700/30',  bg: 'bg-amber-700/10'  },
+  ];
 
   return (
-    <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:block overflow-y-auto overflow-x-hidden hide-scrollbar">
-      <div className="p-6">
-        {/* ── 1. Your Event Stats ── */}
-      <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-yellow-400/20 to-yellow-600/10 border border-yellow-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(250,204,21,0.1)]">
-            <Trophy size={14} className="text-yellow-400" />
-          </div>
-          <h3 className="text-sm font-semibold text-dark-200">Your Event Stats</h3>
-        </div>
-        {loading ? (
-          <div className="space-y-2">
-            {[...Array(4)].map((_, i) => <SkeletonBlock key={i} h="h-4" />)}
-          </div>
-        ) : (
-          <div className="divide-y divide-dark-800/60">
-            <StatRow label="Events Joined" value={data?.stats?.eventsJoined ?? 0} />
-            <StatRow label="Workshops Attended" value={data?.stats?.workshopsAttended ?? 0} />
-            <StatRow label="Hackathons" value={data?.stats?.hackathonsParticipated ?? 0} />
-            <StatRow label="Certificates" value={data?.stats?.certificatesEarned ?? 0} />
-          </div>
-        )}
-        {!loading && (
-          <div className="mt-3 pt-2 border-t border-dark-800/60 flex items-center gap-2">
-            <span className="text-[10px] text-dark-500">Engagement Level</span>
-            <span className={`text-[11px] font-bold ${engagementBadgeColor[data?.stats?.engagementLevel] || 'text-dark-400'}`}>
-              {data?.stats?.engagementLevel || 'Newcomer'}
-            </span>
-          </div>
-        )}
-      </div>
+    <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800/80 hidden xl:flex flex-col overflow-hidden">
+      {/* Scrollable content area — padded to sit below the fixed top navbar */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pt-[68px] pb-6 px-5 space-y-5 scrollbar-thin scrollbar-thumb-dark-700 scrollbar-track-transparent">
 
-      {/* ── 2. Upcoming Events ── */}
-      <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-400/20 to-primary-600/10 border border-primary-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(92,124,250,0.1)]">
-              <Calendar size={14} className="text-primary-400" />
+        {/* ═══════════════════════════════════════
+            1. YOUR EVENT STATS
+        ════════════════════════════════════════ */}
+        <div className="bg-dark-900/60 rounded-2xl p-5 border border-dark-800/80 shadow-sm">
+          <SectionHeader
+            icon={Trophy}
+            iconBg="bg-gradient-to-br from-yellow-400/20 to-yellow-600/5 border-yellow-500/20"
+            iconText="text-yellow-400"
+            iconGlow="0 0 18px rgba(250,204,21,0.12)"
+            label="Your Event Stats"
+          />
+
+          {loading ? (
+            <div className="space-y-2.5">
+              <Skeleton h="h-3.5" />
+              <Skeleton h="h-3.5" w="w-4/5" />
+              <Skeleton h="h-3.5" w="w-3/5" />
             </div>
-            <h3 className="text-sm font-semibold text-dark-200">Upcoming Events</h3>
-          </div>
-          <Link to="/events" className="text-[10px] text-primary-400 hover:text-primary-300 transition-colors">
-            View all
-          </Link>
-        </div>
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="space-y-1.5">
-                <SkeletonBlock h="h-3.5" w="w-3/4" />
-                <SkeletonBlock h="h-3" w="w-1/2" />
+          ) : (
+            <>
+              {/* Stat rows */}
+              <div className="space-y-0 divide-y divide-dark-800/50">
+                {[
+                  { label: 'Events Organized',   value: data?.stats?.eventsOrganized  ?? 0 },
+                  { label: 'Total Campus Events', value: data?.stats?.totalCampusEvents ?? 0 },
+                  { label: 'Happening This Week', value: data?.stats?.upcomingThisWeek  ?? 0 },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between py-2">
+                    <span className="text-xs text-dark-400">{label}</span>
+                    <span className="text-xs font-bold text-dark-100 tabular-nums">{value}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : !data?.upcoming?.length ? (
-          <p className="text-xs text-dark-500 py-2">No registered upcoming events.</p>
-        ) : (
-          <div className="space-y-4">
-            {data.upcoming.map(({ event, status }) => (
-              <Link key={event._id} to={`/events/${event._id}`} className="flex gap-3 group cursor-pointer block">
-                <div className="w-10 h-10 rounded-xl bg-dark-800 flex flex-col items-center justify-center border border-dark-700/50 group-hover:border-primary-500/30 transition-colors">
-                  <span className="text-[10px] text-dark-400 font-medium uppercase">{countdown[event._id] || formatCountdown(event.startDate)}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium text-dark-200 group-hover:text-primary-300 transition-colors truncate">{event.title}</h4>
-                  <div className="flex items-center justify-between mt-1">
-                    <div className="flex items-center gap-1.5">
-                      <CategoryBadge category={event.category} />
-                    </div>
-                    <span className="text-[10px] text-dark-500 capitalize">{status}</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* ── 3. Recommended For You ── */}
-      <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-400/20 to-purple-600/10 border border-purple-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.1)]">
-            <Sparkles size={14} className="text-purple-400" />
-          </div>
-          <h3 className="text-sm font-semibold text-dark-200">Recommended For You</h3>
-        </div>
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="space-y-1.5">
-                <SkeletonBlock h="h-10" w="w-full" />
+              {/* Engagement badge */}
+              <div className="mt-3 pt-2.5 border-t border-dark-800/50 flex items-center justify-between">
+                <span className="text-[10px] text-dark-500 uppercase tracking-wider">Level</span>
+                <div className="flex items-center gap-1.5">
+                  <Star size={10} className={ENGAGEMENT_COLORS[data?.stats?.engagementLevel] || 'text-dark-400'} />
+                  <span className={`text-[11px] font-bold ${ENGAGEMENT_COLORS[data?.stats?.engagementLevel] || 'text-dark-400'}`}>
+                    {data?.stats?.engagementLevel || 'Newcomer Organizer'}
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
-        ) : !data?.recommended?.length ? (
-          <p className="text-xs text-dark-500 py-2">Keep exploring events for recommendations!</p>
-        ) : (
-          <div className="space-y-4">
-            {data.recommended.map((event) => (
-              <Link key={event._id} to={`/events/${event._id}`} className="block group bg-dark-800/40 rounded-xl p-3 border border-dark-700/50 hover:border-primary-500/30 transition-colors">
-                <div className="flex gap-3">
-                  <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-dark-800">
-                    <img src={event.bannerUrl || 'https://via.placeholder.com/150'} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-dark-200 group-hover:text-primary-300 transition-colors truncate">{event.title}</h4>
-                    <p className="text-[10px] text-dark-500 truncate mb-2">{event.reason}</p>
-                    <div className="flex items-center gap-2">
-                      <button onClick={(e) => handleRSVP(e, event._id, 'registered')} className="flex-1 py-1.5 bg-primary-600 hover:bg-primary-500 text-white text-[10px] font-semibold rounded-md transition-colors flex items-center justify-center gap-1">
-                        <Check size={12} /> RSVP
-                      </button>
-                      <button onClick={(e) => handleRSVP(e, event._id, 'interested')} className="flex-1 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-200 text-[10px] font-semibold rounded-md transition-colors flex items-center justify-center gap-1">
-                        <Plus size={12} /> Interested
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── 4. Trending This Week ── */}
-      <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-400/20 to-orange-600/10 border border-orange-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.1)]">
-            <TrendingUp size={14} className="text-orange-400" />
-          </div>
-          <h3 className="text-sm font-semibold text-dark-200">Trending This Week</h3>
+            </>
+          )}
         </div>
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="space-y-1.5">
-                <SkeletonBlock h="h-3.5" w="w-3/4" />
-                <SkeletonBlock h="h-3" w="w-2/5" />
-              </div>
-            ))}
-          </div>
-        ) : !data?.trending?.length ? (
-          <p className="text-xs text-dark-500 py-2">No trending events yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {data.trending.map((item, idx) => (
-              <Link key={item.eventId} to={`/events/${item.eventId}`} className="flex gap-3 group cursor-pointer block">
-                <div className={`w-10 h-10 rounded-xl bg-dark-800 flex flex-col items-center justify-center border border-dark-700/50 group-hover:border-primary-500/30 transition-colors ${idx === 0 ? 'text-orange-400' : idx === 1 ? 'text-dark-400' : 'text-dark-500'}`}>
-                  <span className="text-sm font-bold">#{idx + 1}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium text-dark-200 group-hover:text-primary-300 transition-colors truncate">{item.title}</h4>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-[10px] text-dark-500">+{item.weeklyCount} this week</span>
-                    {idx === 0 && <Flame size={12} className="text-orange-400" />}
+
+        {/* ═══════════════════════════════════════
+            2. RECOMMENDED FOR YOU
+        ════════════════════════════════════════ */}
+        <div className="bg-dark-900/60 rounded-2xl p-5 border border-dark-800/80 shadow-sm">
+          <SectionHeader
+            icon={Sparkles}
+            iconBg="bg-gradient-to-br from-purple-400/20 to-purple-600/5 border-purple-500/20"
+            iconText="text-purple-400"
+            iconGlow="0 0 18px rgba(168,85,247,0.12)"
+            label="Recommended For You"
+          />
+
+          {loading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex gap-3">
+                  <Skeleton h="h-14" w="w-14" />
+                  <div className="flex-1 space-y-2 pt-1">
+                    <Skeleton h="h-3" />
+                    <Skeleton h="h-3" w="w-3/5" />
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── 5. Your Registrations ── */}
-      <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-400/20 to-green-600/10 border border-green-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.1)]">
-            <ClipboardList size={14} className="text-green-400" />
-          </div>
-          <h3 className="text-sm font-semibold text-dark-200">Your Registrations</h3>
-        </div>
-        {loading ? (
-          <div className="space-y-2.5">
-            {[...Array(4)].map((_, i) => <SkeletonBlock key={i} h="h-3.5" />)}
-          </div>
-        ) : !data?.yourRegistrations ? (
-          <p className="text-xs text-dark-500 py-2">No registrations found.</p>
-        ) : (
-          <div>
-            <div className="divide-y divide-dark-800/60 mb-4">
-              <StatRow label="Total Registered" value={data.yourRegistrations.total} />
-              <StatRow label="Upcoming This Week" value={data.yourRegistrations.upcomingThisWeek} />
-              <StatRow label="Completed Events" value={data.yourRegistrations.completed} />
-              <StatRow label="Pending Approvals" value={data.yourRegistrations.pending} />
+              ))}
             </div>
-            
-            {data.yourRegistrations.latestEvent && (
-              <div>
-                <h4 className="text-[10px] text-dark-500 uppercase tracking-wider font-semibold mb-2">Latest Registration</h4>
-                <Link to={`/events/${data.yourRegistrations.latestEvent._id}`} className="block group bg-dark-800/40 rounded-xl p-3 border border-dark-700/50 hover:border-primary-500/30 transition-colors">
-                  <div className="flex gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium text-dark-200 group-hover:text-primary-300 transition-colors truncate">{data.yourRegistrations.latestEvent.title}</h4>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center gap-2">
-                          <CategoryBadge category={data.yourRegistrations.latestEvent.category} />
-                        </div>
-                        <span className="text-primary-400 text-[10px] font-semibold hover:text-primary-300 transition-colors flex items-center gap-1">
-                          View Event <Check size={10} />
-                        </span>
+          ) : !data?.recommended?.length ? (
+            <p className="text-xs text-dark-500 text-center py-4">No recommendations yet — check back soon!</p>
+          ) : (
+            <div className="space-y-3">
+              {data.recommended.map((event) => (
+                <Link
+                  key={String(event._id)}
+                  to={`/events/${event._id}`}
+                  className="group flex items-start gap-3 p-2.5 rounded-xl bg-dark-800/30 border border-dark-700/40 hover:border-primary-500/30 hover:bg-dark-800/60 transition-all duration-200"
+                >
+                  {/* Thumbnail: Aligned Top-Left */}
+                  <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-dark-800 border border-dark-700/50">
+                    {event.bannerUrl ? (
+                      <img
+                        src={event.bannerUrl}
+                        alt={event.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center text-lg ${catStyle(event.category).text}`}>
+                        {event.category?.charAt(0).toUpperCase() || '?'}
                       </div>
+                    )}
+                  </div>
+
+                  {/* Content Stack: Vertically Balanced */}
+                  <div className="flex-1 flex flex-col h-14 justify-between min-w-0 py-0.5">
+                    <h4 className="text-[12px] font-bold text-dark-100 group-hover:text-primary-400 transition-colors leading-tight line-clamp-1">
+                      {event.title}
+                    </h4>
+
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <CategoryChip category={event.category} />
+                      {event.startDate && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-dark-500 whitespace-nowrap min-w-0">
+                          <span className="text-dark-700 font-bold">·</span>
+                          <div className="flex items-center gap-1">
+                            <Calendar size={10} />
+                            <span>{format(new Date(event.startDate), 'MMM d')}</span>
+                          </div>
+                          {event.venue && (
+                            <div className="flex items-center gap-1 min-w-0">
+                              <span className="text-dark-700 font-bold">·</span>
+                              <MapPin size={10} />
+                              <span className="truncate max-w-[70px]">{event.venue}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
+                  </div>
+
+                  {/* Action Icon: Vertically Centered */}
+                  <div className="h-14 flex items-center">
+                    <ChevronRight 
+                      size={16} 
+                      className="text-dark-600 group-hover:text-primary-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" 
+                    />
                   </div>
                 </Link>
-              </div>
-            )}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ═══════════════════════════════════════
+            3. TRENDING THIS WEEK
+        ════════════════════════════════════════ */}
+        <div className="bg-dark-900/60 rounded-2xl p-5 border border-dark-800/80 shadow-sm">
+          <SectionHeader
+            icon={TrendingUp}
+            iconBg="bg-gradient-to-br from-orange-400/20 to-orange-600/5 border-orange-500/20"
+            iconText="text-orange-400"
+            iconGlow="0 0 18px rgba(249,115,22,0.12)"
+            label="Trending This Week"
+          />
+
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex gap-3 items-center">
+                  <Skeleton h="h-9" w="w-9" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton h="h-3" />
+                    <Skeleton h="h-3" w="w-2/5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : !data?.trending?.length ? (
+            <p className="text-xs text-dark-500 text-center py-4">No trending events yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {data.trending.map((item, idx) => {
+                const rs = RANK_STYLES[idx] || RANK_STYLES[2];
+                return (
+                  <Link
+                    key={String(item._id)}
+                    to={`/events/${item._id}`}
+                    className="group flex gap-3 items-start p-2 rounded-xl hover:bg-dark-800/40 transition-colors duration-150"
+                  >
+                    {/* Rank badge */}
+                    <div className={`w-9 h-9 rounded-xl flex flex-col items-center justify-center border ${rs.bg} ${rs.ring} flex-shrink-0`}>
+                      <span className={`text-xs font-black ${rs.num}`}>#{idx + 1}</span>
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-semibold text-dark-200 group-hover:text-primary-300 transition-colors leading-snug line-clamp-2 mb-1">
+                        {item.title}
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        <CategoryChip category={item.category} />
+                        <span className="text-[10px] text-dark-500 flex items-center gap-1">
+                          <TrendingUp size={9} className="text-orange-500" />
+                          {item.weeklyCount} views
+                        </span>
+                      </div>
+                      {item.startDate && (
+                        <div className="flex items-center gap-1 mt-1 text-[10px] text-dark-500">
+                          <Calendar size={9} />
+                          <span>{format(new Date(item.startDate), 'MMM d, yyyy')}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Flame for #1 */}
+                    {idx === 0 && (
+                      <Flame size={14} className="text-orange-400 flex-shrink-0 mt-0.5 animate-pulse" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
       </div>
-    </div>
     </aside>
   );
 }

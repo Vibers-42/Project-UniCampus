@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Calendar, BookOpen, Briefcase, Users, MessageSquare, ShoppingBag, Sparkles, UserPlus, UserCircle, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,13 +6,11 @@ import { useAuth } from '../../contexts/AuthContext';
 export default function Sidebar() {
   const location = useLocation();
   const { user } = useAuth();
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
 
   useEffect(() => {
+    const theme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+  }, []);
 
   const navItems = [
     { name: 'Home', path: '/dashboard', icon: Home },

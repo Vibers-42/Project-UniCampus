@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../config/api';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -15,7 +15,7 @@ export default function StudyGroupsPage() {
   const [showModal, setShowModal] = useState(false);
   const [newGroup, setNewGroup] = useState({ name: '', description: '', category: 'General' });
 
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
       setLoading(true);
       const params = {};
@@ -29,14 +29,14 @@ export default function StudyGroupsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, category]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchGroups();
     }, 300);
     return () => clearTimeout(timer);
-  }, [category, search]);
+  }, [fetchGroups]);
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();

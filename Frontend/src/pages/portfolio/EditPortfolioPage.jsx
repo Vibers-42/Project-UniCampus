@@ -6,7 +6,6 @@ import api from '../../config/api';
 
 export default function EditPortfolioPage() {
   const navigate = useNavigate();
-  const [portfolio, setPortfolio] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -22,7 +21,6 @@ export default function EditPortfolioPage() {
     try {
       const res = await api.get('/portfolio/me');
       const data = res.data.data.portfolio;
-      setPortfolio(data);
       setBio(data.bio || '');
       setSkills(data.skills?.join(', ') || '');
       setLinks({
@@ -34,7 +32,7 @@ export default function EditPortfolioPage() {
         website: data.socialLinks?.website || '',
         twitter: data.socialLinks?.twitter || '',
       });
-    } catch (err) {
+    } catch {
       setError('Failed to load portfolio');
     } finally {
       setIsLoading(false);
@@ -42,7 +40,8 @@ export default function EditPortfolioPage() {
   };
 
   useEffect(() => {
-    fetchPortfolio();
+    const timer = setTimeout(fetchPortfolio, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleSaveBasic = async (e) => {
@@ -56,7 +55,7 @@ export default function EditPortfolioPage() {
         socialLinks: links
       });
       navigate('/portfolio/me');
-    } catch (err) {
+    } catch {
       setError('Failed to save profile');
       setIsSaving(false);
     }

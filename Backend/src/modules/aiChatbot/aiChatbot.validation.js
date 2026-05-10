@@ -9,8 +9,12 @@ const validateAsk = [
     .notEmpty().withMessage('Message is required')
     .isLength({ max: 4000 }).withMessage('Message cannot exceed 4000 characters'),
   body('conversationId')
-    .optional()
+    .optional({ values: 'null' })
     .isMongoId().withMessage('Invalid conversation ID'),
+  body('subject')
+    .optional()
+    .trim()
+    .isLength({ max: 100 }).withMessage('Subject cannot exceed 100 characters'),
 ];
 
 const validateConversationId = [

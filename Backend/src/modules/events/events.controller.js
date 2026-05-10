@@ -26,24 +26,7 @@ const update = catchAsync(async (req, res) => {
   sendSuccess(res, event, 'Event updated successfully');
 });
 
-const rsvp = catchAsync(async (req, res) => {
-  const status = req.body.status || 'registered'; // default to registered
-  const { event, action } = await svc.rsvp(req.params.id, req.user.id, status);
-  const message = action === 'cancelled' ? 'RSVP cancelled' : `RSVP ${action}`;
-  sendSuccess(res, { event, action }, message);
-});
 
-const register = catchAsync(async (req, res) => {
-  const { event, action } = await svc.rsvp(req.params.id, req.user.id, 'registered');
-  const message = action === 'cancelled' ? 'Registration cancelled' : `Successfully registered`;
-  sendSuccess(res, { event, action }, message);
-});
-
-const interested = catchAsync(async (req, res) => {
-  const { event, action } = await svc.rsvp(req.params.id, req.user.id, 'interested');
-  const message = action === 'cancelled' ? 'Interest cancelled' : `Marked as interested`;
-  sendSuccess(res, { event, action }, message);
-});
 
 const remove = catchAsync(async (req, res) => {
   const result = await svc.remove(req.params.id, req.user.id);
@@ -55,5 +38,5 @@ const getSidebarData = catchAsync(async (req, res) => {
   sendSuccess(res, data, 'Sidebar data fetched');
 });
 
-module.exports = { create, getAll, getById, update, rsvp, register, interested, remove, getSidebarData };
+module.exports = { create, getAll, getById, update, remove, getSidebarData };
 

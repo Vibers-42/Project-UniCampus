@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../config/api';
 
 export default function OnboardingPage() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [form, setForm] = useState({
     bio: '',

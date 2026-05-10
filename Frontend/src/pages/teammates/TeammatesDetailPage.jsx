@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Target, Code2, Briefcase, Trash2, ShieldCheck } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -15,7 +15,7 @@ export default function TeammatesDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchProject = async () => {
+  const fetchProject = useCallback(async () => {
     try {
       const res = await api.get(`/teammates/${id}`);
       setProject(res.data.data.project);
@@ -25,11 +25,12 @@ export default function TeammatesDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   useEffect(() => {
-    fetchProject();
-  }, [id]);
+    const timer = setTimeout(fetchProject, 0);
+    return () => clearTimeout(timer);
+  }, [id, fetchProject]);
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this listing?')) return;

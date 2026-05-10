@@ -2,7 +2,7 @@
  * @file portfolio.validation.js — Portfolio Validations
  */
 
-const { body, param, query } = require('express-validator');
+const { body, param } = require('express-validator');
 
 exports.updatePortfolioValidation = [
   body('bio').optional().isString().trim().isLength({ max: 1000 }),

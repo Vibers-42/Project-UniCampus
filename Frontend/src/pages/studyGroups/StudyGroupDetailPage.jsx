@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,7 +18,7 @@ export default function StudyGroupDetailPage() {
 
   const messagesEndRef = useRef(null);
 
-  const fetchGroupDetails = async () => {
+  const fetchGroupDetails = useCallback(async () => {
     try {
       const res = await api.get(`/studyGroups/${id}`);
       setGroup(res.data.data);
@@ -28,27 +28,32 @@ export default function StudyGroupDetailPage() {
       setError('Group not found');
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const res = await api.get(`/studyGroups/${id}/messages`);
       setMessages(res.data.data);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    fetchGroupDetails();
-    fetchMessages();
+    const initialTimer = setTimeout(() => {
+      fetchGroupDetails();
+      fetchMessages();
+    }, 0);
 
     const interval = setInterval(() => {
       fetchMessages();
     }, 5000);
 
-    return () => clearInterval(interval);
-  }, [id]);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
+  }, [id, fetchGroupDetails, fetchMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -178,7 +183,7 @@ export default function StudyGroupDetailPage() {
                   <p className="text-dark-400 font-bold uppercase tracking-widest text-[10px]">No messages yet in this lounge</p>
                 </div>
               ) : (
-                messages.map((msg, index) => {
+                messages.map((msg) => {
                   const isMe = msg.sender === user?.email;
                   return (
                     <div key={msg._id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>

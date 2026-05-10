@@ -4,7 +4,7 @@
 
 const { Router } = require('express');
 const ctrl = require('./events.controller');
-const { validateCreate, validateUpdate, validateId, validateQuery, validateRsvp } = require('./events.validation');
+const { validateCreate, validateUpdate, validateId, validateQuery } = require('./events.validation');
 const validate = require('../../middleware/validation.middleware');
 const { protect, restrictTo } = require('../../middleware/auth.middleware');
 
@@ -23,9 +23,6 @@ router.post('/', restrictTo(...creatorRoles), validateCreate, validate, ctrl.cre
 router.get('/', validateQuery, validate, ctrl.getAll);
 router.get('/:id', validateId, validate, ctrl.getById);
 router.patch('/:id', restrictTo(...creatorRoles), validateUpdate, validate, ctrl.update);
-router.post('/:id/rsvp', validateId, validateRsvp, validate, ctrl.rsvp);
-router.post('/:id/register', validateId, validate, ctrl.register);
-router.post('/:id/interested', validateId, validate, ctrl.interested);
 router.delete('/:id', restrictTo(...creatorRoles), validateId, validate, ctrl.remove);
 
 module.exports = router;

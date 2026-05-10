@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { Edit, ExternalLink, GitBranch, Book, MapPin, MessageSquare, Globe, BookOpen, Briefcase, Award, FolderGit2, ShieldCheck, Mail, Code2, Terminal } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import api from '../../config/api';
@@ -9,7 +9,6 @@ import { format } from 'date-fns';
 export default function PortfolioPage() {
   const { rollNumber } = useParams();
   const { user } = useAuth();
-  const navigate = useNavigate();
   
   const [portfolio, setPortfolio] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,7 +17,7 @@ export default function PortfolioPage() {
   // If no roll number is provided in URL, we load 'me'
   const isOwnProfile = !rollNumber || rollNumber === user?.rollNumber;
 
-  const fetchPortfolio = async () => {
+  const fetchPortfolio = useCallback(async () => {
     try {
       setIsLoading(true);
       setError('');
@@ -31,11 +30,12 @@ export default function PortfolioPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isOwnProfile, rollNumber]);
 
   useEffect(() => {
-    fetchPortfolio();
-  }, [rollNumber]);
+    const timer = setTimeout(fetchPortfolio, 0);
+    return () => clearTimeout(timer);
+  }, [rollNumber, fetchPortfolio]);
 
   if (isLoading) {
     return (
