@@ -32,6 +32,11 @@ const env = Object.freeze({
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
   FRONTEND_URL: process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173',
 
+  // ───── Domain ─────
+  // The ONLY allowed email domain for UniCampus.
+  // Single source of truth — import this everywhere instead of hard-coding the string.
+  ALLOWED_DOMAIN: 'adityauniversity.in',
+
   // ───── JWT (reserved for future use) ─────
   // Firebase handles primary authentication tokens.
   // These are reserved for potential future features

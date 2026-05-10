@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
+import DashboardLayout from '../../components/layout/DashboardLayout';
+import { ArrowLeft, Send, Users, Shield, MessageSquare, LogOut, UserPlus } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default function StudyGroupDetailPage() {
   const { id } = useParams();
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   
   const [group, setGroup] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -19,9 +22,11 @@ export default function StudyGroupDetailPage() {
     try {
       const res = await api.get(`/studyGroups/${id}`);
       setGroup(res.data.data);
+      setLoading(false);
     } catch (err) {
       console.error(err);
       setError('Group not found');
+      setLoading(false);
     }
   };
 
@@ -38,11 +43,8 @@ export default function StudyGroupDetailPage() {
     fetchGroupDetails();
     fetchMessages();
 
-    // Simple polling for MVP (every 5 seconds)
     const interval = setInterval(() => {
       fetchMessages();
-      // fetch group details occasionally to update member count
-      if (Math.random() > 0.5) fetchGroupDetails(); 
     }, 5000);
 
     return () => clearInterval(interval);
@@ -62,6 +64,7 @@ export default function StudyGroupDetailPage() {
   };
 
   const handleLeave = async () => {
+    if (!window.confirm('Are you sure you want to leave this group?')) return;
     try {
       await api.post(`/studyGroups/${id}/leave`);
       fetchGroupDetails();
@@ -84,91 +87,115 @@ export default function StudyGroupDetailPage() {
   };
 
   if (loading && !group) {
-    return <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">Loading...</div>;
-  }
-
-  if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center justify-center">
-        <h2 className="text-2xl mb-4">{error}</h2>
-        <Link to="/study-groups" className="text-indigo-400 hover:text-indigo-300">&larr; Back to Groups</Link>
-      </div>
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center py-32 gap-4">
+          <div className="w-12 h-12 border-4 border-dark-800 border-t-primary-500 rounded-full animate-spin"></div>
+          <p className="text-dark-400 font-bold tracking-widest uppercase text-xs">Syncing Group Lounge...</p>
+        </div>
+      </DashboardLayout>
     );
   }
 
-  const isMember = group?.members?.includes(currentUser?.email);
+  if (error || !group) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center py-32 gap-6">
+          <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center border border-red-500/20 text-red-500">
+            <Shield size={40} />
+          </div>
+          <h2 className="text-2xl font-bold text-dark-100">{error || 'Group not found'}</h2>
+          <Link to="/study-groups" className="btn-secondary px-8">Back to Groups</Link>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const isMember = group?.members?.includes(user?.email);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 p-6 flex items-center justify-between shadow-sm">
-        <div>
-          <Link to="/study-groups" className="text-indigo-400 hover:text-indigo-300 text-sm mb-2 inline-block">
-            &larr; Back to Groups
-          </Link>
-          <div className="flex items-center space-x-3">
-            <h1 className="text-2xl font-bold text-white">{group.name}</h1>
-            <span className="bg-indigo-900 text-indigo-300 text-xs px-2 py-1 rounded-full">
-              {group.category}
-            </span>
-          </div>
-          <p className="text-gray-400 text-sm mt-1">{group.description}</p>
-          <div className="text-gray-500 text-xs mt-2">
-            Created by {group.createdBy} • {group.memberCount} Members
-          </div>
-        </div>
-        
-        <div>
-          {isMember ? (
-            <button onClick={handleLeave} className="bg-red-900/50 hover:bg-red-900 text-red-300 px-4 py-2 rounded transition border border-red-800">
-              Leave Group
-            </button>
-          ) : (
-            <button onClick={handleJoin} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded shadow transition font-medium">
-              Join Group
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* Chat Area */}
-      <div className="flex-grow flex flex-col max-w-5xl mx-auto w-full p-4 md:p-8">
-        {!isMember ? (
-          <div className="flex-grow flex items-center justify-center">
-            <div className="bg-gray-800 p-8 rounded-lg text-center max-w-md border border-gray-700 shadow-xl">
-              <div className="text-4xl mb-4">🔒</div>
-              <h2 className="text-xl font-semibold mb-2">Members Only</h2>
-              <p className="text-gray-400 mb-6">You must join this study group to view and participate in the discussion.</p>
-              <button onClick={handleJoin} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded shadow transition w-full">
-                Join Now
-              </button>
+    <DashboardLayout>
+      <div className="flex flex-col h-[calc(100vh-10rem)] max-w-6xl mx-auto">
+        {/* Header Section */}
+        <div className="auth-card p-6 mb-6 border-dark-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl">
+          <div className="flex items-center gap-5">
+            <Link to="/study-groups" className="p-3 bg-dark-900 rounded-2xl hover:bg-dark-800 transition-colors border border-dark-800 text-dark-400">
+              <ArrowLeft size={20} />
+            </Link>
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-black text-dark-100">{group.name}</h1>
+                <span className="bg-primary-500/10 text-primary-400 text-[10px] font-black px-2 py-1 rounded-md border border-primary-500/20 uppercase tracking-widest">
+                  {group.category}
+                </span>
+              </div>
+              <p className="text-dark-400 text-sm font-medium flex items-center gap-4">
+                <span className="flex items-center gap-1"><Users size={14} className="text-dark-500" /> {group.memberCount} Members</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-dark-700"></span>
+                <span className="text-dark-500">Created by {group.createdBy}</span>
+              </p>
             </div>
           </div>
+          
+          <div>
+            {isMember ? (
+              <button onClick={handleLeave} className="flex items-center gap-2 px-6 py-3 bg-red-500/10 text-red-400 border border-red-500/20 rounded-2xl font-bold text-sm hover:bg-red-500 hover:text-white transition-all shadow-lg shadow-red-500/5">
+                <LogOut size={18} />
+                Leave Lounge
+              </button>
+            ) : (
+              <button onClick={handleJoin} className="btn-primary px-8 py-3 flex items-center gap-2 shadow-xl shadow-primary-500/20">
+                <UserPlus size={18} strokeWidth={2.5} />
+                Join Group
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Chat / Content Area */}
+        {!isMember ? (
+          <div className="flex-1 auth-card border-dashed border-dark-700 bg-dark-900/40 flex flex-col items-center justify-center text-center p-12">
+            <div className="w-24 h-24 bg-dark-800 rounded-full flex items-center justify-center mb-8 border border-dark-700 shadow-inner">
+              <Shield size={48} className="text-dark-500" />
+            </div>
+            <h2 className="text-3xl font-black text-dark-100 mb-3">Lounge Locked</h2>
+            <p className="text-dark-400 max-w-sm mb-10 font-medium leading-relaxed">
+              You need to be a member of this study group to participate in the lounge discussion and see messages.
+            </p>
+            <button onClick={handleJoin} className="btn-primary px-12 py-4 shadow-2xl shadow-primary-500/25">
+              Join this Group
+            </button>
+          </div>
         ) : (
-          <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 flex flex-col h-[calc(100vh-200px)]">
-            {/* Messages List */}
-            <div className="flex-grow overflow-y-auto p-6 space-y-4">
+          <div className="flex-1 auth-card p-0 flex flex-col overflow-hidden border-dark-800 shadow-2xl bg-dark-900/50 backdrop-blur-xl">
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 hide-scrollbar">
               {messages.length === 0 ? (
-                <div className="text-center text-gray-500 mt-10">
-                  No messages yet. Start the conversation!
+                <div className="h-full flex flex-col items-center justify-center text-center">
+                  <div className="p-5 bg-dark-800 rounded-3xl mb-4 border border-dark-700">
+                    <MessageSquare size={32} className="text-dark-500" />
+                  </div>
+                  <p className="text-dark-400 font-bold uppercase tracking-widest text-[10px]">No messages yet in this lounge</p>
                 </div>
               ) : (
-                messages.map((msg) => {
-                  const isMe = msg.sender === currentUser?.email;
+                messages.map((msg, index) => {
+                  const isMe = msg.sender === user?.email;
                   return (
                     <div key={msg._id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                      <div className="flex items-baseline space-x-2 mb-1">
-                        <span className="text-xs font-medium text-gray-400">{isMe ? 'You' : msg.sender}</span>
-                        <span className="text-[10px] text-gray-600">
-                          {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </span>
-                      </div>
-                      <div className={`px-4 py-2 rounded-lg max-w-[80%] break-words ${
+                      {!isMe && (
+                         <span className="text-[10px] font-black text-primary-400/80 mb-1.5 px-2 uppercase tracking-tighter">
+                           {msg.sender.split('@')[0]}
+                         </span>
+                      )}
+                      <div className={`group relative px-5 py-3 rounded-2xl max-w-[85%] md:max-w-[70%] shadow-lg ${
                         isMe 
-                          ? 'bg-indigo-600 text-white rounded-br-none' 
-                          : 'bg-gray-700 text-gray-100 rounded-bl-none'
+                          ? 'bg-primary-600 text-white rounded-br-none shadow-primary-600/10' 
+                          : 'bg-dark-800 text-dark-100 border border-dark-700/50 rounded-bl-none shadow-black/20'
                       }`}>
-                        {msg.content}
+                        <p className="text-[15px] leading-relaxed font-medium whitespace-pre-wrap">{msg.content}</p>
+                        <span className={`absolute bottom-[-18px] text-[9px] font-bold uppercase tracking-tighter whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'right-0 text-primary-500' : 'left-0 text-dark-500'}`}>
+                          {format(new Date(msg.createdAt), 'hh:mm aa')}
+                        </span>
                       </div>
                     </div>
                   );
@@ -178,28 +205,27 @@ export default function StudyGroupDetailPage() {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-gray-900 border-t border-gray-700 rounded-b-lg">
-              <form onSubmit={handleSendMessage} className="flex space-x-2">
+            <div className="p-5 bg-dark-950/80 border-t border-dark-800 backdrop-blur-md">
+              <form onSubmit={handleSendMessage} className="flex gap-3 bg-dark-900 p-2 rounded-2xl border border-dark-800 focus-within:border-primary-500/40 transition-all shadow-inner">
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Message the group..."
-                  className="flex-grow bg-gray-800 text-white px-4 py-3 rounded border border-gray-700 focus:outline-none focus:border-indigo-500"
-                  maxLength={2000}
+                  placeholder="Type your message to the group..."
+                  className="flex-1 bg-transparent border-none text-dark-100 px-4 py-2 focus:ring-0 text-sm font-medium"
                 />
                 <button 
                   type="submit" 
                   disabled={!newMessage.trim()}
-                  className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded transition font-medium"
+                  className="p-3 bg-primary-600 text-white rounded-xl shadow-lg shadow-primary-600/20 hover:bg-primary-500 disabled:opacity-50 disabled:bg-dark-800 disabled:shadow-none transition-all"
                 >
-                  Send
+                  <Send size={18} strokeWidth={2.5} />
                 </button>
               </form>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

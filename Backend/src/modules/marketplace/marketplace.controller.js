@@ -1,12 +1,42 @@
-/** @file marketplace.controller.js */
+const marketplaceService = require('./marketplace.service');
 const catchAsync = require('../../middleware/catchAsync');
 const { sendSuccess } = require('../../shared/responses/apiResponse');
-const svc = require('./marketplace.service');
+const { validationResult } = require('express-validator');
+const AppError = require('../../shared/utils/AppError');
 
-const create   = catchAsync(async (req, res) => { const r = await svc.create(req.body, req.user.email); sendSuccess(res, r, 'Listing created', 201); });
-const getAll   = catchAsync(async (req, res) => { const r = await svc.getAll(req.query); sendSuccess(res, r, `Found ${r.length} listings`); });
-const getById  = catchAsync(async (req, res) => { const r = await svc.getById(req.params.id); sendSuccess(res, r, 'Listing fetched'); });
-const markSold = catchAsync(async (req, res) => { const r = await svc.markSold(req.params.id, req.user.email, req.body.buyerEmail); sendSuccess(res, r, 'Marked as sold'); });
-const remove   = catchAsync(async (req, res) => { await svc.remove(req.params.id, req.user.email); sendSuccess(res, null, 'Listing deleted'); });
+const checkValidation = (req) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new AppError(errors.array()[0].msg, 400);
+  }
+};
 
-module.exports = { create, getAll, getById, markSold, remove };
+exports.getAllListings = catchAsync(async (req, res) => {
+  checkValidation(req);
+  const data = await marketplaceService.getAll(req.query);
+  sendSuccess(res, data, 'Listings fetched successfully');
+});
+
+exports.getListing = catchAsync(async (req, res) => {
+  checkValidation(req);
+  const item = await marketplaceService.getById(req.params.id);
+  sendSuccess(res, item, 'Item details fetched successfully');
+});
+
+exports.createListing = catchAsync(async (req, res) => {
+  checkValidation(req);
+  const item = await marketplaceService.create(req.body, req.user.id);
+  sendSuccess(res, item, 'Item listed successfully', 201);
+});
+
+exports.deleteListing = catchAsync(async (req, res) => {
+  checkValidation(req);
+  await marketplaceService.remove(req.params.id, req.user.id, req.user.role);
+  sendSuccess(res, null, 'Listing removed successfully');
+});
+
+exports.toggleSoldStatus = catchAsync(async (req, res) => {
+  checkValidation(req);
+  const item = await marketplaceService.markSold(req.params.id, req.user.id);
+  sendSuccess(res, item, `Item marked as ${item.isSold ? 'Sold' : 'Available'}`);
+});

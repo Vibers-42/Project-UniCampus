@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, BookOpen, Briefcase, Users, MessageSquare, Settings, Sun, Moon, ChevronUp, ChevronDown } from 'lucide-react';
+import { Home, Calendar, BookOpen, Briefcase, Users, MessageSquare, ShoppingBag, Sparkles, UserPlus, UserCircle, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Sidebar() {
@@ -19,8 +19,12 @@ export default function Sidebar() {
     { name: 'Events', path: '/events', icon: Calendar },
     { name: 'Resources', path: '/resources', icon: BookOpen },
     { name: 'Opportunities', path: '/opportunities', icon: Briefcase },
+    { name: 'Find Teammates', path: '/teammates', icon: UserPlus },
     { name: 'Study Groups', path: '/study-groups', icon: Users },
     { name: 'Messages', path: '/messages', icon: MessageSquare },
+    { name: 'Marketplace', path: '/marketplace', icon: ShoppingBag },
+    { name: 'AI Solver', path: '/ai-solver', icon: Sparkles },
+    { name: 'My Portfolio', path: '/portfolio/me', icon: UserCircle },
   ];
 
   return (

@@ -42,12 +42,8 @@
 const usersService = require('../users/users.service');
 const AppError = require('../../shared/utils/AppError');
 const logger = require('../../shared/utils/logger');
+const { ALLOWED_DOMAIN } = require('../../config/env');
 
-/**
- * The ONLY allowed email domain for UniCampus.
- * Case-insensitive comparison is applied.
- */
-const ALLOWED_DOMAIN = 'adityauniversity.in';
 
 /**
  * Validate that an email belongs to the allowed institutional domain.

@@ -43,16 +43,13 @@ const { authLimiter, resendLimiter } = require('../../middleware/rateLimit.middl
 const { protect } = require('../../middleware/auth.middleware');
 const { verifyToken } = require('../../config/firebase');
 const AppError = require('../../shared/utils/AppError');
+const { ALLOWED_DOMAIN } = require('../../config/env');
 
 const router = Router();
 
 // Apply authLimiter to all auth routes (20 requests per 15 minutes per IP)
 router.use(authLimiter);
 
-/**
- * The ONLY allowed email domain for UniCampus.
- */
-const ALLOWED_DOMAIN = 'adityauniversity.in';
 
 // ──────────────────────────────────────────
 // Lightweight Firebase Token Middleware (for /sync only)
