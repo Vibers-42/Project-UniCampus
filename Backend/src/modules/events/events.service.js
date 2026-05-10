@@ -87,12 +87,23 @@ const getAll = async (filters = {}) => {
 
 /**
  * Get a single event by ID.
+ * Optionally return the current user's registration status.
  */
-const getById = async (id) => {
-  const event = await Event.findById(id).populate('organizerId', 'fullName email avatar role department');
+const getById = async (id, userId = null) => {
+  const event = await Event.findById(id).populate('organizerId', 'fullName email avatar role department').lean();
   if (!event) {
     throw new AppError('Event not found', 404);
   }
+  
+  if (userId) {
+    const registration = await EventRegistration.findOne({ eventId: id, userId }).lean();
+    if (registration) {
+      event.userRegistrationStatus = registration.status;
+    } else {
+      event.userRegistrationStatus = null;
+    }
+  }
+
   return event;
 };
 

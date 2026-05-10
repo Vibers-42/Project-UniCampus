@@ -1,42 +1,52 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Calendar, MapPin, Users, Clock, ArrowLeft, CheckCircle, Info } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { format } from 'date-fns';
+import api from '../../config/api';
 
 export default function EventDetailPage() {
   const { id } = useParams();
   
-  // Dummy fetch
-  const [event] = useState({
-    _id: id,
-    title: 'Global Hackathon 2026',
-    description: 'Join the ultimate coding challenge. Build innovative solutions for campus problems in 48 hours. Mentorship, food, and huge prizes await! Open to all students. Whether you are a beginner or a pro, there is something for everyone. We will have workshops, mini-events, and great networking opportunities.',
-    category: 'hackathon',
-    startDate: new Date(Date.now() + 86400000 * 5).toISOString(),
-    endDate: new Date(Date.now() + 86400000 * 7).toISOString(),
-    venue: 'Main Campus / Online',
-    bannerUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&q=80',
-    registeredCount: 156,
-    interestedCount: 89,
-    maxParticipants: 300,
-    organizerId: { fullName: 'Tech Club', email: 'techclub@adityauniversity.in' },
-    tags: ['coding', 'web', 'ai', 'competition']
-  });
-
+  const [event, setEvent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [rsvpStatus, setRsvpStatus] = useState(null); // null, 'interested', 'registered'
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        const res = await api.get(`/events/${id}`);
+        setEvent(res.data.data);
+        setRsvpStatus(res.data.data.userRegistrationStatus || null);
+      } catch (err) {
+        console.error(err);
+        setError(err.response?.data?.message || 'Failed to load event details.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvent();
+  }, [id]);
+
   const handleRsvp = async (status) => {
     setIsSubmitting(true);
-    // Dummy API call
-    setTimeout(() => {
-      setRsvpStatus(rsvpStatus === status ? null : status);
+    try {
+      const endpoint = status === 'registered' ? 'register' : 'interested';
+      const res = await api.post(`/events/${id}/${endpoint}`);
+      setEvent(res.data.data.event);
+      setRsvpStatus(res.data.data.action === 'cancelled' ? null : res.data.data.event.userRegistrationStatus || status);
+      // If it was cancelled, it sets to null. Otherwise, it uses the requested status.
+    } catch (err) {
+      console.error(err);
+    } finally {
       setIsSubmitting(false);
-    }, 600);
+    }
   };
 
-  if (!event) return <DashboardLayout><div className="animate-pulse flex space-x-4"><div className="flex-1 space-y-6 py-1"><div className="h-48 bg-dark-800 rounded"></div><div className="h-4 bg-dark-800 rounded w-3/4"></div></div></div></DashboardLayout>;
+  if (loading) return <DashboardLayout><div className="animate-pulse flex space-x-4"><div className="flex-1 space-y-6 py-1"><div className="h-48 bg-dark-800 rounded"></div><div className="h-4 bg-dark-800 rounded w-3/4"></div></div></div></DashboardLayout>;
+  if (error || !event) return <DashboardLayout><div className="text-center text-dark-400 py-20">{error || 'Event not found.'}</div></DashboardLayout>;
 
   return (
     <DashboardLayout>
@@ -167,10 +177,10 @@ export default function EventDetailPage() {
               <p className="text-xs font-semibold text-dark-500 uppercase tracking-wider mb-4">Organized By</p>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-dark-700 to-dark-800 rounded-xl flex items-center justify-center text-dark-200 font-bold text-lg border border-dark-700">
-                  {event.organizerId.fullName.charAt(0)}
+                  {event.organizerId?.fullName?.charAt(0) || 'O'}
                 </div>
                 <div>
-                  <p className="font-medium text-dark-100">{event.organizerId.fullName}</p>
+                  <p className="font-medium text-dark-100">{event.organizerId?.fullName || 'Organizer'}</p>
                   <p className="text-sm text-dark-400">Verified Organizer</p>
                 </div>
               </div>
