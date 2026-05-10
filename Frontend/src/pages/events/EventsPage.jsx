@@ -1,49 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, Users, Plus, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import EventSidebar from '../../components/events/EventSidebar';
 import { format } from 'date-fns';
+import api from '../../config/api';
 
 export default function EventsPage() {
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState('all');
   const categories = ['all', 'hackathon', 'workshop', 'seminar', 'cultural', 'sports', 'club', 'other'];
   
-  // Dummy data for now - would fetch from API
-  const [events] = useState([
-    {
-      _id: '1',
-      title: 'Global Hackathon 2026',
-      category: 'hackathon',
-      startDate: new Date(Date.now() + 86400000 * 5).toISOString(),
-      venue: 'Main Campus / Online',
-      bannerUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&q=80',
-      registeredCount: 156,
-      organizerId: { fullName: 'Tech Club' }
-    },
-    {
-      _id: '2',
-      title: 'React Performance Workshop',
-      category: 'workshop',
-      startDate: new Date(Date.now() + 86400000 * 2).toISOString(),
-      venue: 'Lab 4, CS Block',
-      bannerUrl: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&q=80',
-      registeredCount: 42,
-      organizerId: { fullName: 'Web Dev Society' }
-    },
-    {
-      _id: '3',
-      title: 'Annual Cultural Fest',
-      category: 'cultural',
-      startDate: new Date(Date.now() + 86400000 * 14).toISOString(),
-      venue: 'Open Air Theatre',
-      bannerUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80',
-      registeredCount: 450,
-      organizerId: { fullName: 'Student Council' }
-    }
-  ]);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await api.get('/events');
+        setEvents(res.data.data.items);
+      } catch (err) {
+        console.error('Failed to fetch events', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvents();
+  }, []);
 
   const filteredEvents = activeCategory === 'all' 
     ? events 
@@ -156,7 +140,14 @@ export default function EventsPage() {
             ))}
           </div>
           
-          {filteredEvents.length === 0 && (
+          {loading && (
+            <div className="text-center py-20 bg-dark-900/50 rounded-2xl border border-dark-800">
+              <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <h3 className="text-xl font-semibold text-dark-200">Loading events...</h3>
+            </div>
+          )}
+
+          {!loading && filteredEvents.length === 0 && (
             <div className="text-center py-20 bg-dark-900/50 rounded-2xl border border-dark-800">
               <Calendar size={48} className="mx-auto text-dark-600 mb-4" />
               <h3 className="text-xl font-semibold text-dark-200">No events found</h3>
