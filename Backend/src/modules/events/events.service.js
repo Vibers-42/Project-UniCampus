@@ -215,6 +215,135 @@ const remove = async (id, userId) => {
   return { message: 'Event deleted successfully.' };
 };
 
+/**
+ * GET /api/events/sidebar-data
+ * Aggregates all sidebar data for the Events page in one round-trip.
+ *
+ * @param {string} userId — Current user's MongoDB ObjectId
+ * @returns {{ stats, upcoming, trending, pulse }}
+ */
+const getSidebarData = async (userId) => {
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const userObjectId = new (require('mongoose').Types.ObjectId)(userId);
+
+  // Run all queries in parallel for performance
+  const [
+    userRegistrations,
+    upcomingRegistrations,
+    trendingEvents,
+    recentActivity,
+  ] = await Promise.all([
+    // 1. All user registrations (for stats)
+    EventRegistration.find({ userId: userObjectId })
+      .populate('eventId', 'category title status')
+      .lean(),
+
+    // 2. User's next 3 upcoming registered events
+    EventRegistration.find({ userId: userObjectId, status: 'registered' })
+      .populate({
+        path: 'eventId',
+        match: { startDate: { $gte: now }, status: { $ne: 'cancelled' } },
+        select: 'title category startDate venue registeredCount status',
+      })
+      .lean()
+      .then((regs) =>
+        regs
+          .filter((r) => r.eventId) // remove nulls (match filtered them out)
+          .sort((a, b) => a.eventId.startDate - b.eventId.startDate)
+          .slice(0, 3)
+      ),
+
+    // 3. Top 3 trending events this week by registeredCount
+    EventRegistration.aggregate([
+      { $match: { createdAt: { $gte: sevenDaysAgo } } },
+      { $group: { _id: '$eventId', weeklyCount: { $sum: 1 } } },
+      { $sort: { weeklyCount: -1 } },
+      { $limit: 3 },
+      {
+        $lookup: {
+          from: 'events',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'event',
+        },
+      },
+      { $unwind: '$event' },
+      {
+        $project: {
+          _id: 0,
+          eventId: '$_id',
+          weeklyCount: 1,
+          title: '$event.title',
+          category: '$event.category',
+          registeredCount: '$event.registeredCount',
+          startDate: '$event.startDate',
+        },
+      },
+    ]),
+
+    // 4. Campus Pulse — last 8 registrations (any user)
+    EventRegistration.find({ createdAt: { $gte: sevenDaysAgo } })
+      .sort({ createdAt: -1 })
+      .limit(8)
+      .populate('userId', 'fullName avatar department')
+      .populate('eventId', 'title category')
+      .lean(),
+  ]);
+
+  // ── Build Stats ──
+  const categoryMap = {};
+  userRegistrations.forEach((reg) => {
+    if (!reg.eventId) return;
+    const cat = reg.eventId.category;
+    categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+  });
+
+  const eventsJoined = userRegistrations.length;
+  const workshopsAttended = categoryMap['workshop'] || 0;
+  const hackathonsParticipated = categoryMap['hackathon'] || 0;
+  // Certificates = completed hackathons/workshops (simplified heuristic)
+  const certificatesEarned = userRegistrations.filter(
+    (r) => r.eventId && ['workshop', 'hackathon', 'seminar'].includes(r.eventId.category) && r.eventId.status === 'completed'
+  ).length;
+
+  // Campus engagement level
+  let engagementLevel = 'Newcomer';
+  if (eventsJoined >= 10) engagementLevel = 'Campus Leader';
+  else if (eventsJoined >= 6) engagementLevel = 'Active Participant';
+  else if (eventsJoined >= 3) engagementLevel = 'Rising Star';
+  else if (eventsJoined >= 1) engagementLevel = 'Explorer';
+
+  // ── Build Campus Pulse ──
+  const pulse = recentActivity
+    .filter((r) => r.userId && r.eventId)
+    .map((r) => ({
+      user: r.userId.fullName || 'A student',
+      action: 'joined',
+      event: r.eventId.title,
+      category: r.eventId.category,
+      time: r.createdAt,
+    }));
+
+  return {
+    stats: {
+      eventsJoined,
+      workshopsAttended,
+      hackathonsParticipated,
+      certificatesEarned,
+      engagementLevel,
+    },
+    upcoming: upcomingRegistrations.map((r) => ({
+      registrationId: r._id,
+      status: r.status,
+      event: r.eventId,
+    })),
+    trending: trendingEvents,
+    pulse,
+  };
+};
+
 module.exports = {
   create,
   getAll,
@@ -222,4 +351,5 @@ module.exports = {
   update,
   rsvp,
   remove,
+  getSidebarData,
 };

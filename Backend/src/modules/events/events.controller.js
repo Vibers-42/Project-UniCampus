@@ -38,4 +38,10 @@ const remove = catchAsync(async (req, res) => {
   sendSuccess(res, null, result.message);
 });
 
-module.exports = { create, getAll, getById, update, rsvp, remove };
+const getSidebarData = catchAsync(async (req, res) => {
+  const data = await svc.getSidebarData(req.user.id);
+  sendSuccess(res, data, 'Sidebar data fetched');
+});
+
+module.exports = { create, getAll, getById, update, rsvp, remove, getSidebarData };
+
