@@ -11,6 +11,8 @@ router.post('/', validateCreate, validate, ctrl.create);
 router.get('/', ctrl.getAll);
 router.get('/:id', validateId, validate, ctrl.getById);
 router.post('/:id/join', validateId, validate, ctrl.join);
+router.post('/:id/leave', validateId, validate, ctrl.leave);
+router.get('/:id/messages', validateId, validate, ctrl.getMessages);
 router.post('/:id/message', validateMessage, validate, ctrl.message);
 
 module.exports = router;
