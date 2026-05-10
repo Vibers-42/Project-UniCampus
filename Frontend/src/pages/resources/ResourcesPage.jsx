@@ -163,11 +163,11 @@ export default function ResourcesPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {/* Accent line + title row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '3px', height: '28px', borderRadius: '3px', background: 'linear-gradient(180deg, rgb(var(--color-primary-400)), rgb(var(--color-primary-600)))', flexShrink: 0 }} />
+            <div style={{ width: '3px', height: '28px', borderRadius: '3px', background: 'linear-gradient(180deg, #6c63ff, #5a52d5)', flexShrink: 0 }} />
             <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'rgb(var(--color-dark-100))', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{
                 width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(92,124,250,0.1)', border: '0.5px solid rgba(92,124,250,0.2)', fontSize: '18px',
+                background: 'rgba(108,99,255,0.1)', border: '0.5px solid rgba(108,99,255,0.2)', fontSize: '18px',
               }}>
                 📚
               </span>
@@ -185,17 +185,25 @@ export default function ResourcesPage() {
           style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             padding: '10px 18px', borderRadius: '10px', fontSize: '14px', fontWeight: 600,
-            background: 'linear-gradient(135deg, rgb(var(--color-primary-600)), rgb(var(--color-primary-500)))',
+            background: '#6c63ff',
             color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-            boxShadow: '0 4px 14px rgba(92,124,250,0.25)', transition: 'box-shadow 0.2s, transform 0.15s',
+            boxShadow: '0 4px 14px rgba(108,99,255,0.25)', transition: 'all 0.2s ease',
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(92,124,250,0.4)';
-            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.background = '#5a52d5';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(108,99,255,0.4)';
+            e.currentTarget.style.transform = 'translateY(-1px) scale(1.02)';
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.boxShadow = '0 4px 14px rgba(92,124,250,0.25)';
-            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.background = '#6c63ff';
+            e.currentTarget.style.boxShadow = '0 4px 14px rgba(108,99,255,0.25)';
+            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+          }}
+          onMouseDown={e => {
+            e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
+          }}
+          onMouseUp={e => {
+            e.currentTarget.style.transform = 'translateY(-1px) scale(1.02)';
           }}
         >
           <Plus size={16} strokeWidth={2.5} />Upload Resource
@@ -215,23 +223,36 @@ export default function ResourcesPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px', borderRadius: '12px', background: 'rgb(var(--color-dark-800) / 0.6)', border: '0.5px solid rgb(var(--color-dark-700) / 0.5)' }}>
-          {TABS.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              style={{
-                padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
-                border: 'none', cursor: 'pointer', transition: 'all 0.18s',
-                background: activeTab === tab.key ? 'rgb(var(--color-primary-500))' : 'transparent',
-                color: activeTab === tab.key ? '#fff' : 'rgb(var(--color-dark-400))',
-                boxShadow: activeTab === tab.key ? '0 2px 8px rgba(92,124,250,0.25)' : 'none',
-              }}
-              onMouseEnter={e => { if (activeTab !== tab.key) e.currentTarget.style.color = 'rgb(var(--color-dark-100))'; }}
-              onMouseLeave={e => { if (activeTab !== tab.key) e.currentTarget.style.color = 'rgb(var(--color-dark-400))'; }}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {TABS.map(tab => {
+            const active = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: active ? 500 : 400,
+                  border: active ? '0.5px solid #6c63ff' : '0.5px solid transparent', cursor: 'pointer', transition: 'all 0.15s ease',
+                  background: active ? '#6c63ff' : 'transparent',
+                  color: active ? '#ffffff' : 'rgb(var(--color-dark-400))',
+                  boxShadow: active ? '0 2px 8px rgba(108,99,255,0.25)' : 'none',
+                }}
+                onMouseEnter={e => { 
+                  if (!active) {
+                    e.currentTarget.style.borderColor = '#6c63ff';
+                    e.currentTarget.style.color = 'rgb(var(--color-dark-100))';
+                  }
+                }}
+                onMouseLeave={e => { 
+                  if (!active) {
+                    e.currentTarget.style.borderColor = 'transparent';
+                    e.currentTarget.style.color = 'rgb(var(--color-dark-400))';
+                  }
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Sort buttons */}
@@ -246,12 +267,12 @@ export default function ResourcesPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: '5px',
                   padding: '6px 11px', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
-                  border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-                  background: active ? 'rgba(92,124,250,0.12)' : 'transparent',
-                  color: active ? 'rgb(var(--color-primary-300))' : 'rgb(var(--color-dark-500))',
-                  borderBottom: active ? '2px solid rgb(var(--color-primary-400))' : '2px solid transparent',
+                  border: 'none', cursor: 'pointer', transition: 'all 0.15s ease',
+                  background: active ? 'rgba(108,99,255,0.15)' : 'transparent',
+                  color: active ? '#6c63ff' : 'rgb(var(--color-dark-500))',
+                  borderBottom: active ? '2px solid #6c63ff' : '2px solid transparent',
                 }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'rgb(var(--color-dark-200))'; }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#6c63ff'; }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'rgb(var(--color-dark-500))'; }}
               >
                 <Icon size={11} />{opt.label}
@@ -264,7 +285,7 @@ export default function ResourcesPage() {
       {/* ── Content ── */}
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '96px 0', gap: '12px' }}>
-          <Loader2 size={32} style={{ color: 'rgb(var(--color-primary-500))', animation: 'spin 1s linear infinite' }} />
+          <Loader2 size={32} style={{ color: '#6c63ff', animation: 'spin 1s linear infinite' }} />
           <p style={{ fontSize: '14px', color: 'rgb(var(--color-dark-400))' }}>Loading resources…</p>
         </div>
       ) : resources.length > 0 ? (
@@ -286,7 +307,7 @@ export default function ResourcesPage() {
 
           {loadingMore && (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
-              <Loader2 size={22} style={{ color: 'rgb(var(--color-primary-500))', animation: 'spin 1s linear infinite' }} />
+              <Loader2 size={22} style={{ color: '#6c63ff', animation: 'spin 1s linear infinite' }} />
             </div>
           )}
 
@@ -324,9 +345,9 @@ export default function ResourcesPage() {
             style={{
               display: 'flex', alignItems: 'center', gap: '8px',
               padding: '10px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: 600,
-              background: 'linear-gradient(135deg, rgb(var(--color-primary-600)), rgb(var(--color-primary-500)))',
+              background: '#6c63ff',
               color: '#fff', border: 'none', cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(92,124,250,0.2)',
+              boxShadow: '0 4px 14px rgba(108,99,255,0.2)',
             }}
           >
             <Plus size={15} />Upload Resource

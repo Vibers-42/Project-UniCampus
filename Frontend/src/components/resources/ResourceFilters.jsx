@@ -24,6 +24,7 @@ const getSemestersForYear = (year) => {
 
 /* ── Inline select ── */
 function InlineSelect({ value, onChange, options, getLabel, minWidth = 'fit-content' }) {
+  const isSelected = !!value;
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
       <select
@@ -33,17 +34,25 @@ function InlineSelect({ value, onChange, options, getLabel, minWidth = 'fit-cont
           appearance: 'none', WebkitAppearance: 'none',
           height: '38px', paddingLeft: '12px', paddingRight: '28px',
           borderRadius: '10px', fontSize: '13px', fontWeight: 500,
-          background: 'rgb(var(--color-dark-800) / 0.7)',
-          border: '0.5px solid rgb(var(--color-dark-700) / 0.6)',
-          color: value ? 'rgb(var(--color-dark-100))' : 'rgb(var(--color-dark-400))',
+          background: isSelected ? 'rgba(108,99,255,0.08)' : 'rgb(var(--color-dark-800) / 0.7)',
+          border: isSelected ? '1px solid #6c63ff' : '0.5px solid rgb(var(--color-dark-700) / 0.6)',
+          color: isSelected ? '#6c63ff' : 'rgb(var(--color-dark-400))',
           cursor: 'pointer', outline: 'none', minWidth,
-          transition: 'border-color 0.15s',
+          transition: 'all 0.15s ease',
         }}
-        onFocus={e => { e.target.style.borderColor = 'rgba(92,124,250,0.4)'; }}
-        onBlur={e => { e.target.style.borderColor = 'rgb(var(--color-dark-700) / 0.6)'; }}
+        onFocus={e => { 
+          e.target.style.borderColor = '#6c63ff'; 
+          e.target.style.boxShadow = '0 0 0 2px rgba(108,99,255,0.2)';
+        }}
+        onBlur={e => { 
+          e.target.style.borderColor = isSelected ? '#6c63ff' : 'rgb(var(--color-dark-700) / 0.6)';
+          e.target.style.boxShadow = 'none';
+        }}
       >
         {options.map(opt => (
-          <option key={opt} value={opt}>{getLabel ? getLabel(opt) : (opt || '—')}</option>
+          <option key={opt} value={opt} style={{ background: 'rgb(var(--color-dark-900))', color: 'rgb(var(--color-dark-100))' }}>
+            {getLabel ? getLabel(opt) : (opt || '—')}
+          </option>
         ))}
       </select>
       <ChevronDown
@@ -51,7 +60,7 @@ function InlineSelect({ value, onChange, options, getLabel, minWidth = 'fit-cont
         style={{
           position: 'absolute', right: '8px', top: '50%',
           transform: 'translateY(-50%)',
-          color: 'rgb(var(--color-dark-500))', pointerEvents: 'none',
+          color: isSelected ? '#6c63ff' : 'rgb(var(--color-dark-500))', pointerEvents: 'none',
         }}
       />
     </div>
@@ -64,6 +73,8 @@ export default function ResourceFilters({ filters, onChange, onSearch, searchVal
   const [subjectSuggestions, setSubjectSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const subjectRef = useRef(null);
+
+  const isSubjectSelected = !!subjectInput;
 
   /* Autocomplete fetch */
   useEffect(() => {
@@ -138,12 +149,12 @@ export default function ResourceFilters({ filters, onChange, onSearch, searchVal
             background: 'rgb(var(--color-dark-800) / 0.6)',
             border: '0.5px solid rgb(var(--color-dark-700) / 0.6)',
             color: 'rgb(var(--color-dark-100))', outline: 'none',
-            transition: 'border-color 0.15s, box-shadow 0.15s',
+            transition: 'all 0.15s ease',
             boxSizing: 'border-box',
           }}
           onFocus={e => {
-            e.target.style.borderColor = 'rgba(92,124,250,0.45)';
-            e.target.style.boxShadow = '0 0 0 3px rgba(92,124,250,0.08)';
+            e.target.style.borderColor = '#6c63ff';
+            e.target.style.boxShadow = '0 0 0 3px rgba(108,99,255,0.1)';
           }}
           onBlur={e => {
             e.target.style.borderColor = 'rgb(var(--color-dark-700) / 0.6)';
@@ -166,7 +177,10 @@ export default function ResourceFilters({ filters, onChange, onSearch, searchVal
               position: 'absolute', right: '44px', top: '50%', transform: 'translateY(-50%)',
               background: 'none', border: 'none', cursor: 'pointer',
               color: 'rgb(var(--color-dark-500))', padding: '2px',
+              transition: 'color 0.15s ease',
             }}
+            onMouseEnter={e => e.currentTarget.style.color = '#6c63ff'}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgb(var(--color-dark-500))'}
           >
             <X size={14} />
           </button>
@@ -220,13 +234,19 @@ export default function ResourceFilters({ filters, onChange, onSearch, searchVal
             style={{
               width: '100%', height: '38px', padding: '0 12px',
               borderRadius: '10px', fontSize: '13px',
-              background: 'rgb(var(--color-dark-800) / 0.7)',
-              border: '0.5px solid rgb(var(--color-dark-700) / 0.6)',
-              color: 'rgb(var(--color-dark-100))', outline: 'none',
-              transition: 'border-color 0.15s', boxSizing: 'border-box',
+              background: isSubjectSelected ? 'rgba(108,99,255,0.08)' : 'rgb(var(--color-dark-800) / 0.7)',
+              border: isSubjectSelected ? '1px solid #6c63ff' : '0.5px solid rgb(var(--color-dark-700) / 0.6)',
+              color: isSubjectSelected ? '#6c63ff' : 'rgb(var(--color-dark-100))', outline: 'none',
+              transition: 'all 0.15s ease', boxSizing: 'border-box',
             }}
-            onFocusCapture={e => { e.target.style.borderColor = 'rgba(92,124,250,0.4)'; }}
-            onBlurCapture={e => { e.target.style.borderColor = 'rgb(var(--color-dark-700) / 0.6)'; }}
+            onFocusCapture={e => { 
+              e.target.style.borderColor = '#6c63ff'; 
+              e.target.style.boxShadow = '0 0 0 2px rgba(108,99,255,0.2)';
+            }}
+            onBlurCapture={e => { 
+              e.target.style.borderColor = isSubjectSelected ? '#6c63ff' : 'rgb(var(--color-dark-700) / 0.6)';
+              e.target.style.boxShadow = 'none';
+            }}
           />
           {showSuggestions && subjectSuggestions.length > 0 && (
             <div style={{
@@ -245,7 +265,7 @@ export default function ResourceFilters({ filters, onChange, onSearch, searchVal
                     background: 'none', border: 'none', cursor: 'pointer',
                     transition: 'background 0.12s',
                   }}
-                  onMouseEnter={e => { e.target.style.background = 'rgb(var(--color-dark-800))'; e.target.style.color = 'rgb(var(--color-primary-300))'; }}
+                  onMouseEnter={e => { e.target.style.background = 'rgb(var(--color-dark-800))'; e.target.style.color = '#6c63ff'; }}
                   onMouseLeave={e => { e.target.style.background = 'none'; e.target.style.color = 'rgb(var(--color-dark-200))'; }}
                 >
                   {s}
@@ -274,10 +294,16 @@ export default function ResourceFilters({ filters, onChange, onSearch, searchVal
               fontSize: '12px', fontWeight: 500,
               background: 'rgb(var(--color-dark-800) / 0.5)',
               border: '0.5px solid rgb(var(--color-dark-700) / 0.6)',
-              color: 'rgb(var(--color-dark-400))', cursor: 'pointer', transition: 'all 0.15s',
+              color: 'rgb(var(--color-dark-400))', cursor: 'pointer', transition: 'all 0.15s ease',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.3)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgb(var(--color-dark-400))'; e.currentTarget.style.borderColor = 'rgb(var(--color-dark-700) / 0.6)'; }}
+            onMouseEnter={e => { 
+              e.currentTarget.style.color = '#6c63ff'; 
+              e.currentTarget.style.borderColor = '#6c63ff'; 
+            }}
+            onMouseLeave={e => { 
+              e.currentTarget.style.color = 'rgb(var(--color-dark-400))'; 
+              e.currentTarget.style.borderColor = 'rgb(var(--color-dark-700) / 0.6)'; 
+            }}
           >
             <X size={11} />Clear
           </button>
