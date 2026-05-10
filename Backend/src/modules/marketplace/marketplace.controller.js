@@ -1,6 +1,6 @@
 const marketplaceService = require('./marketplace.service');
 const catchAsync = require('../../middleware/catchAsync');
-const sendSuccess = require('../../shared/utils/responses');
+const { sendSuccess } = require('../../shared/responses/apiResponse');
 const { validationResult } = require('express-validator');
 const AppError = require('../../shared/utils/AppError');
 
