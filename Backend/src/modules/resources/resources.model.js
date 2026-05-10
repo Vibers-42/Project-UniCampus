@@ -3,25 +3,23 @@
  *
  * SINGLE RESPONSIBILITY:
  *   Defines the Mongoose schema for academic resources (notes, PDFs,
- *   past papers, etc.) shared by students.
+ *   past papers, lab manuals, etc.) shared by students.
  *
- * SCOPE:
- *   Internal to resources/ — only resources.service.js imports this.
- *
- * BINARY DATA:
- *   pdfUrl stores a Cloudinary URL string — NEVER a Buffer.
- *   Frontend uploads directly to Cloudinary; backend stores only the URL.
+ * FIELDS:
+ *   title, description, fileUrl, fileType, publicId (Cloudinary),
+ *   subject, department, year, semester, category, uploadedBy (ref: User),
+ *   tags[], upvotes[] (ref: User), qualityRating, ratingCount, ratedBy[],
+ *   downloadCount, isExamPeriod, fileHash (for duplicate detection), createdAt
  *
  * INDEXES:
- *   - uploadedBy: find resources by uploader
- *   - department: filter by department
- *   - tags: filter by tag (array index)
- *   - text index on title + tags + subject: full-text search
+ *   - Text index on title + description + tags + subject: full-text search
+ *   - department + semester: compound filter index
+ *   - fileHash + department + semester: duplicate detection
  */
 
 const mongoose = require('mongoose');
 
-const resourcesSchema = new mongoose.Schema(
+const resourceSchema = new mongoose.Schema(
   {
     title: {
       type: String,
@@ -37,23 +35,23 @@ const resourcesSchema = new mongoose.Schema(
       default: '',
     },
 
-    uploadedBy: {
+    fileUrl: {
       type: String,
-      required: [true, 'Uploader email is required'],
-      index: true, // Find resources by uploader
+      required: [true, 'File URL is required'],
     },
 
-    department: {
+    fileType: {
       type: String,
-      required: [true, 'Department is required'],
-      trim: true,
-      index: true, // Filter by department
+      enum: {
+        values: ['pdf', 'doc', 'image'],
+        message: 'File type must be pdf, doc, or image',
+      },
+      required: [true, 'File type is required'],
     },
 
-    semester: {
-      type: Number,
-      min: [1, 'Semester must be at least 1'],
-      max: [8, 'Semester cannot exceed 8'],
+    publicId: {
+      type: String,
+      required: [true, 'Cloudinary public ID is required'],
     },
 
     subject: {
@@ -62,25 +60,63 @@ const resourcesSchema = new mongoose.Schema(
       default: '',
     },
 
-    pdfUrl: {
+    department: {
       type: String,
-      required: [true, 'PDF URL is required'],
+      required: [true, 'Department is required'],
+      trim: true,
     },
 
-    fileSize: {
+    year: {
       type: Number,
-      default: 0, // Bytes — set by frontend after Cloudinary upload
+      min: [1, 'Year must be at least 1'],
+      max: [4, 'Year cannot exceed 4'],
     },
 
-    upvotes: {
-      type: [String], // Array of email strings (who upvoted)
-      default: [],
+    semester: {
+      type: Number,
+      min: [1, 'Semester must be at least 1'],
+      max: [8, 'Semester cannot exceed 8'],
+    },
+
+    category: {
+      type: String,
+      enum: {
+        values: ['notes', 'pyq', 'lab-manual', 'assignment', 'reference', 'other'],
+        message: 'Category must be notes, pyq, lab-manual, assignment, reference, or other',
+      },
+      default: 'notes',
+    },
+
+    uploadedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Uploader reference is required'],
+      index: true,
     },
 
     tags: {
-      type: [String], // e.g. ['midterm', 'notes', 'cheatsheet']
+      type: [String],
       default: [],
-      index: true, // Tag-based filtering
+    },
+
+    upvotes: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+      default: [],
+    },
+
+    qualityRating: {
+      type: Number,
+      default: 0,
+    },
+
+    ratingCount: {
+      type: Number,
+      default: 0,
+    },
+
+    ratedBy: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+      default: [],
     },
 
     downloadCount: {
@@ -88,13 +124,14 @@ const resourcesSchema = new mongoose.Schema(
       default: 0,
     },
 
-    resourceType: {
+    isExamPeriod: {
+      type: Boolean,
+      default: false,
+    },
+
+    fileHash: {
       type: String,
-      enum: {
-        values: ['notes', 'past-paper', 'assignment', 'syllabus', 'other'],
-        message: 'Resource type must be notes, past-paper, assignment, syllabus, or other',
-      },
-      default: 'notes',
+      default: '',
     },
   },
   {
@@ -102,16 +139,13 @@ const resourcesSchema = new mongoose.Schema(
   }
 );
 
-// Full-text search across title, tags, and subject
-resourcesSchema.index({ title: 'text', tags: 'text', subject: 'text' });
+// Full-text search across title, description, tags, and subject
+resourceSchema.index({ title: 'text', description: 'text', tags: 'text', subject: 'text' });
 
-// Virtual: upvote count (avoids storing a separate counter)
-resourcesSchema.virtual('upvoteCount').get(function () {
-  return this.upvotes.length;
-});
+// Filter index
+resourceSchema.index({ department: 1, semester: 1 });
 
-// Ensure virtuals are included in JSON output
-resourcesSchema.set('toJSON', { virtuals: true });
-resourcesSchema.set('toObject', { virtuals: true });
+// Duplicate detection index
+resourceSchema.index({ fileHash: 1, department: 1, semester: 1 });
 
-module.exports = mongoose.model('Resource', resourcesSchema);
+module.exports = mongoose.model('Resource', resourceSchema);
