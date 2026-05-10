@@ -228,16 +228,15 @@ const getSidebarData = async (userId) => {
 
   const userObjectId = new (require('mongoose').Types.ObjectId)(userId);
 
-  // Run all queries in parallel for performance
+    // Run all queries in parallel for performance
   const [
     userRegistrations,
     upcomingRegistrations,
     trendingEvents,
-    recentActivity,
   ] = await Promise.all([
-    // 1. All user registrations (for stats)
+    // 1. All user registrations (for stats and yourRegistrations)
     EventRegistration.find({ userId: userObjectId })
-      .populate('eventId', 'category title status')
+      .populate('eventId', 'category title status startDate venue bannerUrl')
       .lean(),
 
     // 2. User's next 3 upcoming registered events
@@ -283,13 +282,7 @@ const getSidebarData = async (userId) => {
       },
     ]),
 
-    // 4. Campus Pulse — last 8 registrations (any user)
-    EventRegistration.find({ createdAt: { $gte: sevenDaysAgo } })
-      .sort({ createdAt: -1 })
-      .limit(8)
-      .populate('userId', 'fullName avatar department')
-      .populate('eventId', 'title category')
-      .lean(),
+    ]),
   ]);
 
   // ── Build Stats & Categories ──
@@ -350,16 +343,26 @@ const getSidebarData = async (userId) => {
     recommendedEvents = [...recommendedEvents, ...fallbackEvents];
   }
 
-  // ── Build Campus Pulse ──
-  const pulse = recentActivity
-    .filter((r) => r.userId && r.eventId)
-    .map((r) => ({
-      user: r.userId.fullName || 'A student',
-      action: 'joined',
-      event: r.eventId.title,
-      category: r.eventId.category,
-      time: r.createdAt,
-    }));
+  // ── Build Your Registrations Summary ──
+  const registeredOnly = userRegistrations.filter((r) => r.status === 'registered' && r.eventId);
+  const totalRegistrations = registeredOnly.length;
+  
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const upcomingThisWeek = registeredOnly.filter((r) => 
+    r.eventId.startDate >= now && r.eventId.startDate <= nextWeek
+  ).length;
+
+  const completedEvents = registeredOnly.filter((r) => r.eventId.status === 'completed').length;
+  
+  // Pending approvals might map to 'interested' status or waitlist in the future
+  const pendingApprovals = userRegistrations.filter((r) => r.status === 'interested').length;
+
+  // Find the latest registered event by registration createdAt
+  let latestEvent = null;
+  if (registeredOnly.length > 0) {
+    const sortedRegs = [...registeredOnly].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    latestEvent = sortedRegs[0].eventId;
+  }
 
   return {
     stats: {
@@ -375,7 +378,13 @@ const getSidebarData = async (userId) => {
       event: r.eventId,
     })),
     trending: trendingEvents,
-    pulse,
+    yourRegistrations: {
+      total: totalRegistrations,
+      upcomingThisWeek,
+      completed: completedEvents,
+      pending: pendingApprovals,
+      latestEvent,
+    },
     recommended: recommendedEvents.map(e => ({
       ...e,
       reason: sortedCategories.includes(e.category) 

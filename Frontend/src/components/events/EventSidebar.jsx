@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Flame, TrendingUp, Activity, Trophy, Calendar, Users, Sparkles, Plus, Check } from 'lucide-react';
+import { Flame, TrendingUp, Trophy, Calendar, Users, Sparkles, Plus, Check, ClipboardList } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../config/api';
 
@@ -279,33 +279,49 @@ export default function EventSidebar() {
         )}
       </div>
 
-      {/* ── 5. Campus Pulse ── */}
+      {/* ── 5. Your Registrations ── */}
       <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-400/20 to-green-600/10 border border-green-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.1)]">
-            <Activity size={14} className="text-green-400" />
+            <ClipboardList size={14} className="text-green-400" />
           </div>
-          <h3 className="text-sm font-semibold text-dark-200">Campus Pulse</h3>
+          <h3 className="text-sm font-semibold text-dark-200">Your Registrations</h3>
         </div>
         {loading ? (
           <div className="space-y-2.5">
             {[...Array(4)].map((_, i) => <SkeletonBlock key={i} h="h-3.5" />)}
           </div>
-        ) : !data?.pulse?.length ? (
-          <p className="text-xs text-dark-500 py-2">No recent campus activity.</p>
+        ) : !data?.yourRegistrations ? (
+          <p className="text-xs text-dark-500 py-2">No registrations found.</p>
         ) : (
-          <div className="space-y-4">
-            {data.pulse.slice(0, 6).map((item, i) => (
-              <div key={i} className="flex gap-3 items-start">
-                <div className="w-2 h-2 rounded-full bg-green-500/80 mt-1.5 flex-shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.4)]" />
-                <p className="text-xs text-dark-400 leading-relaxed">
-                  <span className="text-dark-200 font-medium">{item.user}</span>{' '}
-                  {item.action}{' '}
-                  <span className="text-primary-400 font-medium">{item.event}</span>
-                  <span className="block text-[10px] text-dark-600 mt-0.5">{timeAgo(item.time)}</span>
-                </p>
+          <div>
+            <div className="divide-y divide-dark-800/60 mb-4">
+              <StatRow label="Total Registered" value={data.yourRegistrations.total} />
+              <StatRow label="Upcoming This Week" value={data.yourRegistrations.upcomingThisWeek} />
+              <StatRow label="Completed Events" value={data.yourRegistrations.completed} />
+              <StatRow label="Pending Approvals" value={data.yourRegistrations.pending} />
+            </div>
+            
+            {data.yourRegistrations.latestEvent && (
+              <div>
+                <h4 className="text-[10px] text-dark-500 uppercase tracking-wider font-semibold mb-2">Latest Registration</h4>
+                <Link to={`/events/${data.yourRegistrations.latestEvent._id}`} className="block group bg-dark-800/40 rounded-xl p-3 border border-dark-700/50 hover:border-primary-500/30 transition-colors">
+                  <div className="flex gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-medium text-dark-200 group-hover:text-primary-300 transition-colors truncate">{data.yourRegistrations.latestEvent.title}</h4>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          <CategoryBadge category={data.yourRegistrations.latestEvent.category} />
+                        </div>
+                        <span className="text-primary-400 text-[10px] font-semibold hover:text-primary-300 transition-colors flex items-center gap-1">
+                          View Event <Check size={10} />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
