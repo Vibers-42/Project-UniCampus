@@ -4,6 +4,34 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-dark-50: 248 249 250;
+  --color-dark-100: 241 243 245;
+  --color-dark-200: 233 236 239;
+  --color-dark-300: 222 226 230;
+  --color-dark-400: 206 212 218;
+  --color-dark-500: 173 181 189;
+  --color-dark-600: 134 142 150;
+  --color-dark-700: 73 80 87;
+  --color-dark-800: 52 58 64;
+  --color-dark-900: 33 37 41;
+  --color-dark-950: 22 25 29;
+}
+
+:root[data-theme="light"] {
+  --color-dark-50: 22 25 29;
+  --color-dark-100: 33 37 41;
+  --color-dark-200: 52 58 64;
+  --color-dark-300: 73 80 87;
+  --color-dark-400: 134 142 150;
+  --color-dark-500: 173 181 189;
+  --color-dark-600: 206 212 218;
+  --color-dark-700: 222 226 230;
+  --color-dark-800: 233 236 239;
+  --color-dark-900: 241 243 245;
+  --color-dark-950: 248 249 250;
+}
+
 @layer base {
   body {
     @apply bg-dark-950 text-dark-200 font-sans antialiased;
@@ -29,6 +57,14 @@
            focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:ring-offset-2 focus:ring-offset-dark-900
            disabled:opacity-50 disabled:cursor-not-allowed
            transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 bg-primary-500/10 text-primary-400 text-sm font-medium rounded-full border border-primary-500/20;
+  }
+
+  .chip-remove {
+    @apply hover:text-red-400 cursor-pointer transition-colors;
   }
 
   .btn-secondary {

@@ -1,10 +1,18 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, BookOpen, Briefcase, Users, MessageSquare, Settings } from 'lucide-react';
+import { Home, Calendar, BookOpen, Briefcase, Users, MessageSquare, Settings, Sun, Moon, ChevronUp, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Sidebar() {
   const location = useLocation();
   const { user } = useAuth();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   const navItems = [
     { name: 'Home', path: '/dashboard', icon: Home },
@@ -45,12 +53,13 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-dark-800">
-        <Link to="/settings" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-all">
+        <Link to="/settings" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-all mb-4">
           <Settings size={20} className="text-dark-500" />
           Settings
         </Link>
-        <div className="mt-4 flex items-center gap-3 px-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-600 to-primary-400 flex items-center justify-center text-white font-bold">
+        
+        <div className="flex items-center gap-3 px-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-600 to-primary-400 flex items-center justify-center text-white font-bold shrink-0">
             {user?.fullName?.charAt(0) || 'U'}
           </div>
           <div className="overflow-hidden">

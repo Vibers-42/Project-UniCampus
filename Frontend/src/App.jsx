@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 
@@ -28,7 +29,16 @@ import StudyGroupDetailPage from './pages/studyGroups/StudyGroupDetailPage';
 // Messages
 import MessagesPage from './pages/messages/MessagesPage';
 
+// Settings
+import SettingsPage from './pages/settings/SettingsPage';
+import EditProfilePage from './pages/settings/EditProfilePage';
+
 export default function App() {
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -57,6 +67,8 @@ export default function App() {
           <Route path="/study-groups/:id" element={<ProtectedRoute><StudyGroupDetailPage /></ProtectedRoute>} />
 
           <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/settings/profile" element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
 
           {/* ── Default redirect ── */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

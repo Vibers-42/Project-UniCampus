@@ -53,9 +53,31 @@ app.use(cookieParser());
 // ──────────────────────────────────────────
 
 // CORS — controls which origins can call the API
+// In development, Vite may bind to 5173, 5174, 5175, etc. depending on
+// which ports are already in use. A dynamic origin function handles this
+// so you never get "Network Error" from a port mismatch.
+const corsOrigin = (origin, callback) => {
+  // Allow requests with no origin (mobile apps, curl, Postman, server-to-server)
+  if (!origin) return callback(null, true);
+
+  // In development, accept any localhost / 127.0.0.1 origin on any port
+  if (env.NODE_ENV === 'development') {
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+  }
+
+  // In production, only allow the configured CLIENT_URL
+  if (origin === env.CLIENT_URL) {
+    return callback(null, true);
+  }
+
+  callback(new Error('Not allowed by CORS'));
+};
+
 app.use(
   cors({
-    origin: env.CLIENT_URL,
+    origin: corsOrigin,
     credentials: true, // Allow cookies/auth headers
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   })

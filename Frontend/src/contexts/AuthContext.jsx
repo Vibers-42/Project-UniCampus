@@ -221,6 +221,25 @@ export function AuthProvider({ children }) {
   };
 
   /**
+   * Change password (requires re-authentication).
+   */
+  const changePassword = async (oldPassword, newPassword) => {
+    setAuthLoading(true);
+    try {
+      if (!auth.currentUser) throw new Error('No authenticated user');
+      
+      const { EmailAuthProvider, reauthenticateWithCredential, updatePassword } = await import('firebase/auth');
+      const credential = EmailAuthProvider.credential(auth.currentUser.email, oldPassword);
+      
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      await updatePassword(auth.currentUser, newPassword);
+      console.debug('[Auth] Password changed successfully.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  /**
    * Sign out from both Firebase and app state.
    */
   const logout = async () => {
@@ -232,6 +251,7 @@ export function AuthProvider({ children }) {
   const value = {
     // State
     user,
+    setUser,
     loading,
     authLoading,
 
@@ -240,6 +260,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     resetPassword,
+    changePassword,
 
     // Computed
     isAuthenticated: !!user,
