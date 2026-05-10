@@ -10,7 +10,6 @@ import {
   Trash2, 
   CheckCircle2, 
   AlertCircle,
-  // eslint-disable-next-line no-unused-vars
   ExternalLink
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -36,7 +35,6 @@ export default function ItemDetailPage() {
       }
     };
     fetchItem();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleDelete = async () => {
