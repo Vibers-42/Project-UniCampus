@@ -2,11 +2,17 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   BarChart2, Filter, TrendingUp, Download, Bookmark, Star, 
-  Trophy, Clock, Grid, Upload, FileText, FileImage, File, ChevronRight
+  Trophy, Clock, Grid, Upload, ChevronRight
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 import { getResources } from '../../api/resource.api';
+
+// Import mock data
+import { mockResources, mockTopContributors, mockActivity } from '../../mocks/resourcesMockData';
+
+/* ── MOCK DATA FLAG ── */
+const USE_MOCK_DATA = true;
 
 const QUICK_FILTERS = [
   { label: 'My Department', key: 'department', getValue: (user) => user?.department || '' },
@@ -70,85 +76,104 @@ export default function ResourceRightPanel({ onQuickFilter, activeFilters = {} }
   const [myStats, setMyStats] = useState({ uploads: 0, downloads: 0 });
 
   useEffect(() => {
-    // 1. Trending (already in existing)
-    const loadTrending = async () => {
-      try {
-        const res = await getResources({ sort: 'most-downloaded', limit: 3 });
-        setTrending(res.data?.data?.items || []);
-      } catch { /* silent */ }
-      finally { setLoading(prev => ({ ...prev, trending: false })); }
-    };
+    if (USE_MOCK_DATA) {
+      // 1. Trending (top 3 by downloads)
+      const trendingMock = [...mockResources]
+        .sort((a, b) => (b.downloadCount || 0) - (a.downloadCount || 0))
+        .slice(0, 3);
+      setTrending(trendingMock);
 
-    // 2. Recent Uploads
-    const loadRecent = async () => {
-      try {
-        const res = await getResources({ sort: 'newest', limit: 3 });
-        setRecent(res.data?.data?.items || []);
-      } catch { /* silent */ }
-      finally { setLoading(prev => ({ ...prev, recent: false })); }
-    };
+      // 2. Recent Uploads
+      const recentMock = [...mockResources]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 3);
+      setRecent(recentMock);
 
-    // 3. Top Contributors (simulated by fetching most uploaded or grouping recent)
-    const loadContributors = async () => {
-      try {
-        // Using sort=most-uploaded if supported, or just group by from a larger list
-        const res = await getResources({ sort: 'most-uploaded', limit: 5 });
-        // The backend might not have a direct 'most-uploaded' sort that returns users, 
-        // but if it returns resources sorted by uploader activity, we extract unique ones.
-        const items = res.data?.data?.items || [];
-        const seen = new Set();
-        const contributors = [];
-        items.forEach(item => {
-          if (item.uploadedBy && !seen.has(item.uploadedBy._id)) {
-            seen.add(item.uploadedBy._id);
-            contributors.push({
-              user: item.uploadedBy,
-              uploadCount: items.filter(i => i.uploadedBy?._id === item.uploadedBy._id).length + 2 // simulation bonus
-            });
-          }
-        });
-        setTopContributors(contributors.slice(0, 3));
-      } catch { /* silent */ }
-      finally { setLoading(prev => ({ ...prev, contributors: false })); }
-    };
+      // 3. Top Contributors
+      setTopContributors(mockTopContributors);
 
-    // 4. My Uploads & Stats
-    const loadMyActivity = async () => {
-      if (!user) {
-        setLoading(prev => ({ ...prev, myUploads: false }));
-        return;
-      }
-      try {
-        const res = await getResources({ uploadedBy: user._id, limit: 100, sort: 'newest' });
-        const items = res.data?.data?.items || [];
-        const totalDownloads = items.reduce((sum, r) => sum + (r.downloadCount || 0), 0);
-        setMyStats({ uploads: items.length, downloads: totalDownloads });
-        setMyUploads(items.slice(0, 2));
-      } catch { /* silent */ }
-      finally { setLoading(prev => ({ ...prev, myUploads: false })); }
-    };
+      // 4. My Activity & Uploads (using user_001 Aryan Patel as current user)
+      setMyStats(mockActivity);
+      setMyUploads(mockResources.filter(r => r.uploadedBy?._id === 'user_001').slice(0, 2));
 
-    // 5. Category Counts (Simple simulation by fetching 1 from each to get totalItems)
-    const loadCategoryCounts = async () => {
+      // 5. Category Counts
       const counts = {};
-      try {
-        // To be efficient, we'd ideally have an endpoint for this. 
-        // For now, we'll try to get it from the main fetch if we can, or just mock it.
-        // Actually, let's just use a fixed set of mocks for the 'count' to fulfill the UI requirement
-        // unless we want to do 6 separate requests (expensive).
-        CATEGORIES.forEach(cat => {
-          counts[cat.id] = Math.floor(Math.random() * 20) + 5; // Simulation
-        });
-        setCategoryCounts(counts);
-      } catch { /* silent */ }
-      finally { setLoading(prev => ({ ...prev, categories: false })); }
-    };
+      CATEGORIES.forEach(cat => {
+        counts[cat.id] = mockResources.filter(r => r.category === cat.id).length;
+      });
+      setCategoryCounts(counts);
 
-    loadTrending();
-    loadRecent();
-    loadContributors();
-    loadMyActivity();
-    loadCategoryCounts();
+      setLoading({ trending: false, recent: false, contributors: false, myUploads: false, categories: false });
+    } else {
+      // 1. Trending
+      const loadTrending = async () => {
+        try {
+          const res = await getResources({ sort: 'most-downloaded', limit: 3 });
+          setTrending(res.data?.data?.items || []);
+        } catch { /* silent */ }
+        finally { setLoading(prev => ({ ...prev, trending: false })); }
+      };
+
+      // 2. Recent Uploads
+      const loadRecent = async () => {
+        try {
+          const res = await getResources({ sort: 'newest', limit: 3 });
+          setRecent(res.data?.data?.items || []);
+        } catch { /* silent */ }
+        finally { setLoading(prev => ({ ...prev, recent: false })); }
+      };
+
+      // 3. Top Contributors
+      const loadContributors = async () => {
+        try {
+          const res = await getResources({ sort: 'most-uploaded', limit: 5 });
+          const items = res.data?.data?.items || [];
+          const seen = new Set();
+          const contributors = [];
+          items.forEach(item => {
+            if (item.uploadedBy && !seen.has(item.uploadedBy._id)) {
+              seen.add(item.uploadedBy._id);
+              contributors.push({
+                user: item.uploadedBy,
+                uploadCount: items.filter(i => i.uploadedBy?._id === item.uploadedBy._id).length + 2
+              });
+            }
+          });
+          setTopContributors(contributors.slice(0, 3));
+        } catch { /* silent */ }
+        finally { setLoading(prev => ({ ...prev, contributors: false })); }
+      };
+
+      // 4. My Uploads & Stats
+      const loadMyActivity = async () => {
+        if (!user) {
+          setLoading(prev => ({ ...prev, myUploads: false }));
+          return;
+        }
+        try {
+          const res = await getResources({ uploadedBy: user._id, limit: 100, sort: 'newest' });
+          const items = res.data?.data?.items || [];
+          const totalDownloads = items.reduce((sum, r) => sum + (r.downloadCount || 0), 0);
+          setMyStats({ uploads: items.length, downloads: totalDownloads });
+          setMyUploads(items.slice(0, 2));
+        } catch { /* silent */ }
+        finally { setLoading(prev => ({ ...prev, myUploads: false })); }
+      };
+
+      // 5. Category Counts
+      const loadCategoryCounts = async () => {
+        const counts = {};
+        try {
+          CATEGORIES.forEach(cat => {
+            counts[cat.id] = Math.floor(Math.random() * 20) + 5; 
+          });
+          setCategoryCounts(counts);
+        } catch { /* silent */ }
+        finally { setLoading(prev => ({ ...prev, categories: false })); }
+      };
+
+      loadTrending(); loadRecent(); loadContributors(); loadMyActivity(); loadCategoryCounts();
+    }
   }, [user]);
 
   const isFilterActive = (key, value) => activeFilters[key] === value;
@@ -339,7 +364,7 @@ export default function ResourceRightPanel({ onQuickFilter, activeFilters = {} }
           </div>
         ) : topContributors.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {topContributors.map(({ user: u, uploadCount }) => (
+            {topContributors.map((u) => (
               <Link
                 key={u._id}
                 to={`/profile/${u._id}`}
@@ -364,7 +389,7 @@ export default function ResourceRightPanel({ onQuickFilter, activeFilters = {} }
                   </p>
                   <p style={{ fontSize: '9px', color: 'rgb(var(--color-dark-500))' }}>{u.department}</p>
                 </div>
-                <span style={{ fontSize: '10px', fontWeight: 600, color: '#6c63ff' }}>{uploadCount} uploads</span>
+                <span style={{ fontSize: '10px', fontWeight: 600, color: '#6c63ff' }}>{u.uploadCount} uploads</span>
               </Link>
             ))}
           </div>
@@ -442,7 +467,7 @@ export default function ResourceRightPanel({ onQuickFilter, activeFilters = {} }
       </PanelSection>
 
       {/* ── Your Uploads ── */}
-      {user && (loading.myUploads || myUploads.length > 0) && (
+      {(loading.myUploads || myUploads.length > 0) && (
         <PanelSection icon={Upload} label="📤 Your Uploads">
           {loading.myUploads ? (
             <div style={{ height: '60px', borderRadius: '10px', background: 'rgb(var(--color-dark-800) / 0.5)', animation: 'pulse 1.5s infinite' }} />
