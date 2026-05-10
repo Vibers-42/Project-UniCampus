@@ -1,16 +1,20 @@
-/** @file marketplace.routes.js */
-const { Router } = require('express');
-const ctrl = require('./marketplace.controller');
-const { validateCreate, validateId } = require('./marketplace.validation');
-const validate = require('../../middleware/validation.middleware');
+const express = require('express');
+const router = express.Router();
+const marketplaceController = require('./marketplace.controller');
 const { protect } = require('../../middleware/auth.middleware');
-const router = Router();
+const { 
+  createListingValidation, 
+  getListingsValidation, 
+  itemIDValidation 
+} = require('./marketplace.validation');
+
+// All marketplace routes are protected (require login)
 router.use(protect);
 
-router.post('/', validateCreate, validate, ctrl.create);
-router.get('/', ctrl.getAll);
-router.get('/:id', validateId, validate, ctrl.getById);
-router.patch('/:id/sold', validateId, validate, ctrl.markSold);
-router.delete('/:id', validateId, validate, ctrl.remove);
+router.get('/', getListingsValidation, marketplaceController.getAllListings);
+router.get('/:id', itemIDValidation, marketplaceController.getListing);
+router.post('/', createListingValidation, marketplaceController.createListing);
+router.delete('/:id', itemIDValidation, marketplaceController.deleteListing);
+router.patch('/:id/toggle-sold', itemIDValidation, marketplaceController.toggleSoldStatus);
 
 module.exports = router;

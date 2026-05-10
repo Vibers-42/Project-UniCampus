@@ -28,6 +28,10 @@ import StudyGroupDetailPage from './pages/studyGroups/StudyGroupDetailPage';
 // Messages
 import MessagesPage from './pages/messages/MessagesPage';
 
+// Marketplace
+import MarketplacePage from './pages/marketplace/MarketplacePage';
+import ItemDetailPage from './pages/marketplace/ItemDetailPage';
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -57,6 +61,9 @@ export default function App() {
           <Route path="/study-groups/:id" element={<ProtectedRoute><StudyGroupDetailPage /></ProtectedRoute>} />
 
           <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+
+          <Route path="/marketplace" element={<ProtectedRoute><MarketplacePage /></ProtectedRoute>} />
+          <Route path="/marketplace/:id" element={<ProtectedRoute><ItemDetailPage /></ProtectedRoute>} />
 
           {/* ── Default redirect ── */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
