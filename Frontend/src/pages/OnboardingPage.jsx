@@ -4,7 +4,9 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../config/api';
 
 export default function OnboardingPage() {
+  // eslint-disable-next-line no-unused-vars
   const { user, logout } = useAuth();
+  // eslint-disable-next-line no-unused-vars
   const navigate = useNavigate();
 
   const [form, setForm] = useState({

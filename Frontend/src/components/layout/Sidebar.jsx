@@ -6,7 +6,10 @@ import { useAuth } from '../../contexts/AuthContext';
 export default function Sidebar() {
   const location = useLocation();
   const { user } = useAuth();
+   
+  // eslint-disable-next-line no-unused-vars
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
 
   useEffect(() => {

@@ -1,23 +1,19 @@
-export const uploadImage = async (file) => {
+import api from '../config/api';
+
+export const uploadImage = async (file, folder = 'general') => {
   const formData = new FormData();
   formData.append('file', file);
-  // Using a generic preset that usually works, or you'd need the specific one configured
-  formData.append('upload_preset', 'unicampus_frontend');
-  formData.append('folder', 'unicampus/posts');
-  
-  const cloudName = 'dd6etq1me';
+  formData.append('folder', folder);
+
   try {
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: 'POST',
-      body: formData,
+    const res = await api.post('/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
-    const data = await res.json();
-    if (data.secure_url) {
-      return data.secure_url;
-    }
-    throw new Error('Image upload failed');
+    return res.data.data.url;
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
+    console.error('Secure upload failed:', error);
     throw error;
   }
 };

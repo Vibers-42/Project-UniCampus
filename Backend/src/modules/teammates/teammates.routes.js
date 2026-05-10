@@ -18,6 +18,7 @@ router.route('/')
 
 router.route('/:id')
   .get(validation.projectIdValidation, teammatesController.getProjectById)
+  .put(validation.updateProjectValidation, teammatesController.updateProject)
   .patch(validation.updateStatusValidation, teammatesController.updateProjectStatus)
   .delete(validation.projectIdValidation, teammatesController.deleteProject);
 

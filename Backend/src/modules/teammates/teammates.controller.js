@@ -81,6 +81,24 @@ exports.updateProjectStatus = catchAsync(async (req, res) => {
 });
 
 /**
+ * Update project details
+ */
+exports.updateProject = catchAsync(async (req, res) => {
+  checkValidation(req);
+  
+  const project = await teammatesService.updateProject(
+    req.params.id,
+    req.user._id,
+    req.body
+  );
+
+  res.status(200).json({
+    status: 'success',
+    data: { project }
+  });
+});
+
+/**
  * Delete a project listing
  */
 exports.deleteProject = catchAsync(async (req, res) => {

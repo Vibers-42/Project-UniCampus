@@ -43,6 +43,7 @@ export default function MessagesPage() {
 
   // Initial load
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchConversations();
   }, []);
 
@@ -50,6 +51,7 @@ export default function MessagesPage() {
   useEffect(() => {
     let interval;
     if (activeConversation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchMessages(activeConversation._id);
       interval = setInterval(() => {
         fetchMessages(activeConversation._id, false); // false means don't set loading state

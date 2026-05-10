@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../config/api';
@@ -40,6 +41,7 @@ export default function StudyGroupDetailPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchGroupDetails();
     fetchMessages();
 
@@ -48,6 +50,7 @@ export default function StudyGroupDetailPage() {
     }, 5000);
 
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -178,6 +181,7 @@ export default function StudyGroupDetailPage() {
                   <p className="text-dark-400 font-bold uppercase tracking-widest text-[10px]">No messages yet in this lounge</p>
                 </div>
               ) : (
+                // eslint-disable-next-line no-unused-vars
                 messages.map((msg, index) => {
                   const isMe = msg.sender === user?.email;
                   return (

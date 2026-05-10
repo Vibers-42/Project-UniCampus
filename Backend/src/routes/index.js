@@ -43,6 +43,9 @@ router.use('/users', usersRoutes);
 const resourcesRoutes = require('../modules/resources/resources.routes');
 router.use('/resources', resourcesRoutes);
 
+const uploadRoutes = require('../modules/upload/upload.routes');
+router.use('/upload', uploadRoutes);
+
 const eventsRoutes = require('../modules/events/events.routes');
 router.use('/events', eventsRoutes);
 

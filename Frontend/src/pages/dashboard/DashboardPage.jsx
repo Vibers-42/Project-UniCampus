@@ -1,103 +1,113 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFeed } from '../../hooks/useFeed';
 import CreatePost from '../../components/feed/CreatePost';
 import PostCard from '../../components/feed/PostCard';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { PlusCircle, UploadCloud, MessageSquare, ShoppingBag, CalendarPlus, Users } from 'lucide-react';
 
-const TABS = ['All', 'Resource', 'Discussion', 'Event', 'Marketplace'];
+const FEED_TABS = [
+  { id: 'For You', backendType: 'All' },
+  { id: 'Trending', backendType: 'All' },
+  { id: 'Campus Activity', backendType: 'All' },
+  { id: 'Teams', backendType: 'Discussion' }, // Mapped for MVP
+  { id: 'Opportunities', backendType: 'General' }, // Mapped for MVP
+  { id: 'Marketplace Nearby', backendType: 'Marketplace' }
+];
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { posts, loading, fetchFeed, createPost, likePost } = useFeed();
-  const [activeTab, setActiveTab] = useState('All');
+  const [activeTab, setActiveTab] = useState(FEED_TABS[0]);
 
   useEffect(() => {
-    fetchFeed(activeTab);
+    // For MVP, we map the contextual frontend tabs to the existing backend feed types
+    fetchFeed(activeTab.backendType);
   }, [activeTab, fetchFeed]);
+
+  const quickActions = [
+    { name: 'Find Team', icon: Users, path: '/teammates/create', color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { name: 'Add Resource', icon: UploadCloud, path: '/resources', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { name: 'Ask Doubt', icon: MessageSquare, path: '/ai-solver', color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { name: 'Sell Item', icon: ShoppingBag, path: '/marketplace', color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { name: 'New Event', icon: CalendarPlus, path: '/events/create', color: 'text-rose-400', bg: 'bg-rose-500/10' },
+    { name: 'Study Group', icon: PlusCircle, path: '/study-groups', color: 'text-primary-400', bg: 'bg-primary-500/10' },
+  ];
 
   return (
     <DashboardLayout>
+      {/* Header */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-dark-100">
-          Welcome back, {user?.fullName?.split(' ')[0] || 'there'} 👋
+        <h2 className="text-2xl font-bold text-dark-100 flex items-center gap-2">
+          Dashboard <span className="text-dark-500 font-normal">/</span> <span className="text-primary-400">Home</span>
         </h2>
-        <p className="text-dark-400 mt-1">Here&apos;s what&apos;s happening on campus today.</p>
+        <p className="text-dark-400 mt-1 font-medium">What's happening around you today, {user?.fullName?.split(' ')[0] || 'there'}?</p>
       </div>
 
-      {/* Profile completion prompt */}
-      {user?.profileCompletionPercent < 100 && (
-        <div className="mb-6 p-4 bg-primary-500/5 border border-primary-500/20 rounded-xl flex items-center justify-between">
-          <div>
-            <p className="text-dark-200 font-medium text-sm">Complete your profile</p>
-            <p className="text-dark-400 text-xs mt-0.5">
-              Your profile is {user?.profileCompletionPercent || 0}% complete.
-            </p>
-          </div>
-          <div className="w-20 h-1.5 bg-dark-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all duration-500"
-              style={{ width: `${user?.profileCompletionPercent || 0}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Quick stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="auth-card p-6">
-          <h3 className="text-dark-400 text-sm font-medium">Role</h3>
-          <p className="text-dark-100 text-lg font-semibold mt-1 capitalize">{user?.role || 'Student'}</p>
-        </div>
-        <div className="auth-card p-6">
-          <h3 className="text-dark-400 text-sm font-medium">Department</h3>
-          <p className="text-dark-100 text-lg font-semibold mt-1">{user?.department || 'Not set'}</p>
-        </div>
-        <div className="auth-card p-6">
-          <h3 className="text-dark-400 text-sm font-medium">Year</h3>
-          <p className="text-dark-100 text-lg font-semibold mt-1">
-            {user?.yearOfStudy ? `${user.yearOfStudy}${['st', 'nd', 'rd', 'th'][user.yearOfStudy - 1] || 'th'} Year` : 'Not set'}
-          </p>
+      {/* Quick Actions */}
+      <div className="mb-8">
+        <h3 className="text-xs font-bold text-dark-400 uppercase tracking-widest mb-3 px-1">Quick Actions</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {quickActions.map((action, i) => (
+            <Link
+              key={i}
+              to={action.path}
+              className="auth-card p-4 flex flex-col items-center justify-center text-center group hover:border-primary-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary-500/5 cursor-pointer border border-dark-800 bg-dark-900/40"
+            >
+              <div className={`w-10 h-10 rounded-xl ${action.bg} flex items-center justify-center mb-2 group-hover:scale-110 transition-transform`}>
+                <action.icon size={18} className={action.color} />
+              </div>
+              <span className="text-xs font-bold text-dark-200 group-hover:text-dark-100">{action.name}</span>
+            </Link>
+          ))}
         </div>
       </div>
 
-      {/* Feed Section */}
-      <CreatePost onSubmit={createPost} />
+      {/* Post Creation */}
+      <div className="mb-8">
+        <CreatePost onSubmit={createPost} />
+      </div>
 
       {/* Feed Tabs */}
-      <div className="flex overflow-x-auto gap-3 mb-6 pb-2 hide-scrollbar">
-        {TABS.map(tab => (
+      <div className="flex overflow-x-auto gap-2 mb-6 pb-2 hide-scrollbar border-b border-dark-800/50">
+        {FEED_TABS.map(tab => (
           <button
-            key={tab}
+            key={tab.id}
             onClick={() => setActiveTab(tab)}
-            className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-medium transition-all shadow-sm ${
-              activeTab === tab 
-                ? 'bg-primary-500/10 text-primary-400 border border-primary-500/30' 
-                : 'bg-dark-900 border border-dark-800 text-dark-400 hover:text-dark-200 hover:bg-dark-800'
+            className={`whitespace-nowrap px-4 py-2.5 rounded-t-xl text-sm font-semibold transition-all duration-200 ${
+              activeTab.id === tab.id 
+                ? 'text-primary-400 border-b-2 border-primary-400 bg-primary-500/5' 
+                : 'text-dark-400 hover:text-dark-200 hover:bg-dark-900/50 border-b-2 border-transparent'
             }`}
           >
-            {tab === 'All' ? 'All Posts' : `${tab}s`}
+            {tab.id}
           </button>
         ))}
       </div>
 
-      {/* Posts List */}
+      {/* Feed Section */}
       {loading ? (
-        <div className="text-center py-12 text-dark-400 flex flex-col items-center">
-          <div className="w-8 h-8 border-4 border-dark-800 border-t-primary-500 rounded-full animate-spin mb-4"></div>
-          Loading your feed...
+        <div className="text-center py-16 flex flex-col items-center justify-center">
+          <div className="w-10 h-10 border-4 border-dark-800 border-t-primary-500 rounded-full animate-spin mb-4"></div>
+          <p className="text-dark-400 font-bold text-xs uppercase tracking-widest">Compiling your feed...</p>
         </div>
       ) : posts.length > 0 ? (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-2xl">
           {posts.map(post => (
             <PostCard key={post._id} post={post} onLike={likePost} />
           ))}
+          <div className="py-6 text-center">
+            <p className="text-dark-500 text-xs font-bold uppercase tracking-widest">You've caught up for now!</p>
+          </div>
         </div>
       ) : (
-        <div className="auth-card py-16 text-center border-dashed border-dark-700 bg-dark-900/40">
-          <div className="text-4xl mb-4">📭</div>
-          <h3 className="text-dark-200 font-medium mb-1">No posts yet</h3>
-          <p className="text-dark-500 text-sm">Be the first to share something in this category!</p>
+        <div className="auth-card py-20 text-center border-dashed border-dark-700 bg-dark-900/30 max-w-2xl">
+          <div className="text-5xl mb-5 opacity-50">🧭</div>
+          <h3 className="text-dark-100 font-bold text-lg mb-2">No activity in this view</h3>
+          <p className="text-dark-400 text-sm max-w-sm mx-auto leading-relaxed">
+            There doesn't seem to be anything matching your "{activeTab.id}" context right now.
+          </p>
         </div>
       )}
     </DashboardLayout>

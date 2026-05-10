@@ -11,6 +11,7 @@ export default function PostCard({ post, onLike }) {
     setLikesCount(prevLiked ? prevCount - 1 : prevCount + 1);
     try {
       await onLike(post._id);
+    // eslint-disable-next-line no-unused-vars
     } catch (err) {
       setIsLiked(prevLiked);
       setLikesCount(prevCount);

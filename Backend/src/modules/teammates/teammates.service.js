@@ -40,10 +40,18 @@ exports.getAllProjects = async (query) => {
     filter.techStack = { $in: stacks };
   }
   
+  // If requiredSkills is provided as comma separated string
+  if (query.requiredSkills) {
+    const skills = query.requiredSkills.split(',').map(s => new RegExp(s.trim(), 'i'));
+    filter.requiredSkills = { $in: skills };
+  }
+  
   if (query.search) {
     filter.$or = [
       { title: { $regex: query.search, $options: 'i' } },
-      { description: { $regex: query.search, $options: 'i' } }
+      { shortDescription: { $regex: query.search, $options: 'i' } },
+      { detailedDescription: { $regex: query.search, $options: 'i' } },
+      { problemStatement: { $regex: query.search, $options: 'i' } }
     ];
   }
 
@@ -93,6 +101,38 @@ exports.updateProjectStatus = async (projectId, userId, status) => {
 };
 
 /**
+ * Update project details
+ */
+exports.updateProject = async (projectId, userId, updateData) => {
+  const project = await TeamProject.findById(projectId);
+
+  if (!project) {
+    throw new AppError('Project listing not found', 404);
+  }
+
+  if (project.creatorId.toString() !== userId.toString()) {
+    throw new AppError('You do not have permission to modify this listing', 403);
+  }
+
+  // Prevent updating creatorId
+  delete updateData.creatorId;
+
+  // Validate team size if provided
+  const currentSize = updateData.currentTeamSize || project.currentTeamSize;
+  const requiredSize = updateData.requiredTeamSize || project.requiredTeamSize;
+  if (currentSize >= requiredSize) {
+    throw new AppError('Current team size must be less than required total team size', 400);
+  }
+
+  Object.assign(project, updateData);
+  await project.save();
+
+  return project;
+};
+
+const uploadService = require('../../shared/uploadService');
+
+/**
  * Delete a project listing
  */
 exports.deleteProject = async (projectId, userId) => {
@@ -104,6 +144,19 @@ exports.deleteProject = async (projectId, userId) => {
 
   if (project.creatorId.toString() !== userId.toString()) {
     throw new AppError('You do not have permission to delete this listing', 403);
+  }
+
+  // Delete associated attachments from Cloudinary
+  if (project.attachments && project.attachments.length > 0) {
+    for (const url of project.attachments) {
+      const publicId = uploadService.extractPublicId(url);
+      if (publicId) {
+        await uploadService.deleteFile(publicId).catch(err => {
+          // Log but don't fail deletion if cloudinary fails
+          console.error(`Failed to delete Cloudinary file ${publicId}:`, err);
+        });
+      }
+    }
   }
 
   await TeamProject.findByIdAndDelete(projectId);

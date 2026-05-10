@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Target, Code2, Briefcase, Trash2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Send, Target, Code2, Briefcase, Trash2, ShieldCheck, FileText, Link as LinkIcon, Calendar, Wrench, Edit } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import api from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 
 export default function TeammatesDetailPage() {
   const { id } = useParams();
@@ -28,7 +28,9 @@ export default function TeammatesDetailPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProject();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleDelete = async () => {
@@ -80,7 +82,6 @@ export default function TeammatesDetailPage() {
 
         {/* Main Content Card */}
         <div className="bg-dark-900 border border-dark-800 rounded-3xl overflow-hidden shadow-2xl relative">
-          {/* Header Banner area (subtle gradient) */}
           <div className="h-32 bg-gradient-to-r from-primary-900/40 to-dark-900 relative border-b border-dark-800">
             <div className="absolute top-6 right-6 flex gap-3">
               <span className={`px-4 py-1.5 rounded-full text-sm font-bold border ${
@@ -99,46 +100,85 @@ export default function TeammatesDetailPage() {
               <span className="inline-block px-3 py-1 bg-primary-500/10 text-primary-400 border border-primary-500/20 rounded-lg text-sm font-bold uppercase tracking-wider mb-4 shadow-lg shadow-primary-500/10">
                 {project.category}
               </span>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-dark-100 leading-tight">
+              <h1 className="text-3xl md:text-4xl font-extrabold text-dark-100 leading-tight mb-2">
                 {project.title}
               </h1>
-              <p className="text-dark-400 mt-2 flex items-center gap-2">
-                Posted {formatDistanceToNow(new Date(project.createdAt), { addSuffix: true })}
-              </p>
+              <p className="text-dark-300 text-lg mb-4">{project.shortDescription || project.description}</p>
+              
+              <div className="flex flex-wrap items-center gap-4 text-sm text-dark-400">
+                <span className="flex items-center gap-1">
+                  <Calendar size={16} /> Posted {formatDistanceToNow(new Date(project.createdAt), { addSuffix: true })}
+                </span>
+                {project.deadline && (
+                  <span className="flex items-center gap-1 text-red-400 font-medium bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
+                    <Calendar size={16} /> Deadline: {format(new Date(project.deadline), 'MMM d, yyyy')}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-              
               {/* Left Column - Details */}
               <div className="md:col-span-2 space-y-10">
                 
-                {/* Description */}
-                <section>
-                  <h2 className="text-xl font-bold text-dark-100 mb-4 flex items-center gap-2">
-                    <Target size={22} className="text-primary-500" />
-                    Project Description
-                  </h2>
-                  <div className="text-dark-300 leading-relaxed whitespace-pre-wrap text-[15px]">
-                    {project.description}
-                  </div>
-                </section>
-
-                {/* Required Roles */}
-                {project.requiredRoles && project.requiredRoles.length > 0 && (
+                {/* Problem Statement */}
+                {project.problemStatement && (
                   <section>
                     <h2 className="text-xl font-bold text-dark-100 mb-4 flex items-center gap-2">
-                      <Briefcase size={22} className="text-primary-500" />
-                      Looking For
+                      <Target size={22} className="text-primary-500" />
+                      Problem Statement
                     </h2>
-                    <div className="flex flex-wrap gap-3">
-                      {project.requiredRoles.map((role, idx) => (
-                        <span key={idx} className="bg-dark-800 text-dark-200 px-4 py-2 rounded-xl border border-dark-700 font-medium">
-                          {role}
-                        </span>
-                      ))}
+                    <div className="p-5 bg-dark-950 border border-dark-800 rounded-2xl text-dark-300 leading-relaxed whitespace-pre-wrap text-[15px]">
+                      {project.problemStatement}
                     </div>
                   </section>
                 )}
+
+                {/* Detailed Description */}
+                <section>
+                  <h2 className="text-xl font-bold text-dark-100 mb-4 flex items-center gap-2">
+                    <FileText size={22} className="text-primary-500" />
+                    Project Details
+                  </h2>
+                  <div className="text-dark-300 leading-relaxed whitespace-pre-wrap text-[15px]">
+                    {project.detailedDescription || project.description}
+                  </div>
+                </section>
+
+                {/* Required Roles & Skills */}
+                <section className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                  {project.requiredRoles && project.requiredRoles.length > 0 && (
+                    <div>
+                      <h2 className="text-lg font-bold text-dark-100 mb-3 flex items-center gap-2">
+                        <Briefcase size={20} className="text-primary-500" />
+                        Looking For
+                      </h2>
+                      <div className="flex flex-wrap gap-2">
+                        {project.requiredRoles.map((role, idx) => (
+                          <span key={idx} className="bg-dark-800 text-dark-200 px-3 py-1.5 rounded-lg border border-dark-700 text-sm font-medium">
+                            {role}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {project.requiredSkills && project.requiredSkills.length > 0 && (
+                    <div>
+                      <h2 className="text-lg font-bold text-dark-100 mb-3 flex items-center gap-2">
+                        <Wrench size={20} className="text-primary-500" />
+                        Required Skills
+                      </h2>
+                      <div className="flex flex-wrap gap-2">
+                        {project.requiredSkills.map((skill, idx) => (
+                          <span key={idx} className="bg-dark-800 text-dark-200 px-3 py-1.5 rounded-lg border border-dark-700 text-sm font-medium">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
 
                 {/* Tech Stack */}
                 {project.techStack && project.techStack.length > 0 && (
@@ -153,6 +193,53 @@ export default function TeammatesDetailPage() {
                           {tech}
                         </span>
                       ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Attachments & Links */}
+                {(project.githubLink || project.figmaLink || (project.referenceLinks && project.referenceLinks.length > 0) || (project.attachments && project.attachments.length > 0)) && (
+                  <section>
+                    <h2 className="text-xl font-bold text-dark-100 mb-4 flex items-center gap-2">
+                      <LinkIcon size={22} className="text-primary-500" />
+                      Links & Attachments
+                    </h2>
+                    <div className="space-y-4">
+                      {project.githubLink && (
+                        <a href={project.githubLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-dark-950 border border-dark-800 hover:border-dark-700 rounded-xl transition-colors text-dark-200 hover:text-dark-100">
+                          <Code2 size={20} /> {project.githubLink}
+                        </a>
+                      )}
+                      {project.figmaLink && (
+                        <a href={project.figmaLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-dark-950 border border-dark-800 hover:border-dark-700 rounded-xl transition-colors text-dark-200 hover:text-dark-100">
+                          <Target size={20} /> {project.figmaLink}
+                        </a>
+                      )}
+                      {project.referenceLinks && project.referenceLinks.map((link, idx) => (
+                        <a key={idx} href={link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-dark-950 border border-dark-800 hover:border-dark-700 rounded-xl transition-colors text-primary-400 hover:text-primary-300 truncate">
+                          <LinkIcon size={20} /> {link}
+                        </a>
+                      ))}
+                      
+                      {project.attachments && project.attachments.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
+                          {project.attachments.map((url, idx) => {
+                            const isPdf = url.endsWith('.pdf');
+                            return (
+                              <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="group block relative aspect-square rounded-xl overflow-hidden border border-dark-800 hover:border-primary-500/50 transition-all">
+                                {isPdf ? (
+                                  <div className="w-full h-full bg-dark-950 flex flex-col items-center justify-center text-dark-400 group-hover:text-primary-400 transition-colors">
+                                    <FileText size={32} className="mb-2" />
+                                    <span className="text-xs font-bold uppercase tracking-wider">View PDF</span>
+                                  </div>
+                                ) : (
+                                  <img src={url} alt={`Attachment ${idx}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                )}
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </section>
                 )}
@@ -214,6 +301,13 @@ export default function TeammatesDetailPage() {
                 <div className="bg-dark-950 border border-dark-800 p-6 rounded-2xl space-y-4">
                   {isCreator ? (
                     <>
+                      <Link
+                        to={`/teammates/edit/${project._id}`}
+                        className="w-full py-3 rounded-xl font-bold bg-primary-600 hover:bg-primary-500 text-white transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
+                      >
+                        <Edit size={18} />
+                        Edit Post
+                      </Link>
                       <button
                         onClick={() => handleStatusChange(project.status === 'open' ? 'closed' : 'open')}
                         className={`w-full py-3 rounded-xl font-bold transition-all border ${

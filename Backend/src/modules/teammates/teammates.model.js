@@ -12,11 +12,23 @@ const teamProjectSchema = new mongoose.Schema(
       trim: true,
       maxlength: [100, 'Title cannot exceed 100 characters']
     },
-    description: {
+    shortDescription: {
       type: String,
-      required: [true, 'Project description is required'],
+      required: [true, 'Short description is required'],
       trim: true,
-      maxlength: [2000, 'Description cannot exceed 2000 characters']
+      maxlength: [300, 'Short description cannot exceed 300 characters']
+    },
+    detailedDescription: {
+      type: String,
+      required: [true, 'Detailed description is required'],
+      trim: true,
+      maxlength: [5000, 'Detailed description cannot exceed 5000 characters']
+    },
+    problemStatement: {
+      type: String,
+      required: [true, 'Problem statement is required'],
+      trim: true,
+      maxlength: [2000, 'Problem statement cannot exceed 2000 characters']
     },
     creatorId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -25,7 +37,7 @@ const teamProjectSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ['hackathon', 'project', 'startup', 'competition', 'other'],
+      enum: ['hackathon', 'project', 'startup', 'competition', 'open source', 'research', 'freelance', 'college project', 'other'],
       default: 'project'
     },
     techStack: [{
@@ -33,6 +45,10 @@ const teamProjectSchema = new mongoose.Schema(
       trim: true
     }],
     requiredRoles: [{
+      type: String,
+      trim: true
+    }],
+    requiredSkills: [{
       type: String,
       trim: true
     }],
@@ -52,6 +68,28 @@ const teamProjectSchema = new mongoose.Schema(
       trim: true,
       maxlength: [200, 'Contact info cannot exceed 200 characters']
     },
+    deadline: {
+      type: Date,
+      required: [true, 'Deadline is required']
+    },
+    attachments: [{
+      type: String, // Cloudinary URLs
+      trim: true
+    }],
+    githubLink: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    figmaLink: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    referenceLinks: [{
+      type: String,
+      trim: true
+    }],
     status: {
       type: String,
       enum: ['open', 'closed'],

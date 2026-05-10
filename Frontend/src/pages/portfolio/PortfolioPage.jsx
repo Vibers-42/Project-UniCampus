@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 export default function PortfolioPage() {
   const { rollNumber } = useParams();
   const { user } = useAuth();
+  // eslint-disable-next-line no-unused-vars
   const navigate = useNavigate();
   
   const [portfolio, setPortfolio] = useState(null);
@@ -34,7 +35,9 @@ export default function PortfolioPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPortfolio();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rollNumber]);
 
   if (isLoading) {

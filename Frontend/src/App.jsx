@@ -97,6 +97,7 @@ export default function App() {
 
           <Route path="/teammates" element={<ProtectedRoute><TeammatesPage /></ProtectedRoute>} />
           <Route path="/teammates/create" element={<ProtectedRoute><CreateTeammatesPage /></ProtectedRoute>} />
+          <Route path="/teammates/edit/:id" element={<ProtectedRoute><CreateTeammatesPage isEdit={true} /></ProtectedRoute>} />
           <Route path="/teammates/:id" element={<ProtectedRoute><TeammatesDetailPage /></ProtectedRoute>} />
 
           <Route path="/portfolio/me" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />

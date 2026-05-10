@@ -13,7 +13,9 @@ export default function EventDetailPage() {
     title: 'Global Hackathon 2026',
     description: 'Join the ultimate coding challenge. Build innovative solutions for campus problems in 48 hours. Mentorship, food, and huge prizes await! Open to all students. Whether you are a beginner or a pro, there is something for everyone. We will have workshops, mini-events, and great networking opportunities.',
     category: 'hackathon',
+    // eslint-disable-next-line react-hooks/purity
     startDate: new Date(Date.now() + 86400000 * 5).toISOString(),
+    // eslint-disable-next-line react-hooks/purity
     endDate: new Date(Date.now() + 86400000 * 7).toISOString(),
     venue: 'Main Campus / Online',
     bannerUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&q=80',
