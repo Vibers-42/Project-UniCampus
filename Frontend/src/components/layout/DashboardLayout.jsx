@@ -33,7 +33,7 @@ export default function DashboardLayout({ children, hideWidgets = false, rightCo
       {showRight && (
         rightContent ? (
           <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:flex flex-col overflow-y-auto">
-            <div className="p-5 flex flex-col gap-4 mt-16">
+            <div className="px-5 pb-5 pt-2 flex flex-col gap-4 mt-12">
               {rightContent}
             </div>
           </aside>
