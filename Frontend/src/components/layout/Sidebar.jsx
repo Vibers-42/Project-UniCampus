@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, BookOpen, Briefcase, Users, MessageSquare, ShoppingBag, Settings } from 'lucide-react';
+import { Home, Calendar, BookOpen, Briefcase, Users, MessageSquare, ShoppingBag, Sparkles, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Sidebar() {
@@ -14,6 +14,7 @@ export default function Sidebar() {
     { name: 'Study Groups', path: '/study-groups', icon: Users },
     { name: 'Messages', path: '/messages', icon: MessageSquare },
     { name: 'Marketplace', path: '/marketplace', icon: ShoppingBag },
+    { name: 'AI Solver', path: '/ai-solver', icon: Sparkles },
   ];
 
   return (

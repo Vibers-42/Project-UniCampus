@@ -32,6 +32,9 @@ import MessagesPage from './pages/messages/MessagesPage';
 import MarketplacePage from './pages/marketplace/MarketplacePage';
 import ItemDetailPage from './pages/marketplace/ItemDetailPage';
 
+// AI Doubt Solver
+import AIDoubtSolverPage from './pages/ai/AIDoubtSolverPage';
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -64,6 +67,8 @@ export default function App() {
 
           <Route path="/marketplace" element={<ProtectedRoute><MarketplacePage /></ProtectedRoute>} />
           <Route path="/marketplace/:id" element={<ProtectedRoute><ItemDetailPage /></ProtectedRoute>} />
+
+          <Route path="/ai-solver" element={<ProtectedRoute><AIDoubtSolverPage /></ProtectedRoute>} />
 
           {/* ── Default redirect ── */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
