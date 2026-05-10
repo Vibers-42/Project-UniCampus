@@ -41,8 +41,8 @@ export default function App() {
           {/* ── Verify email (static instructions — user is signed out) ── */}
           <Route path="/verify-email" element={<PublicRoute><VerifyEmailPage /></PublicRoute>} />
 
-          {/* ── Onboarding (protected but not subject to onboarding redirect) ── */}
-          <Route path="/onboarding" element={<OnboardingPage />} />
+          {/* ── Onboarding (protected — user must be authenticated) ── */}
+          <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
 
           {/* ── Protected app routes ── */}
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />

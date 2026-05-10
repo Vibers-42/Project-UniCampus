@@ -24,9 +24,10 @@ api.interceptors.request.use(
   async (config) => {
     const user = auth.currentUser;
     if (user) {
-      // getIdToken(true) forces a refresh — critical after email verification
-      // to ensure the token contains the updated email_verified claim
-      const token = await user.getIdToken(true);
+      // getIdToken() uses the cached token and auto-refreshes near expiry.
+      // Force-refresh (true) is only needed after email verification, which is
+      // already handled in AuthContext.verifyAndSync via getIdToken(true).
+      const token = await user.getIdToken();
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;

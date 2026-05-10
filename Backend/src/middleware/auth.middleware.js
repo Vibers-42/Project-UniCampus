@@ -35,13 +35,8 @@
 const { verifyToken } = require('../config/firebase');
 const usersService = require('../modules/users/users.service');
 const AppError = require('../shared/utils/AppError');
+const { ALLOWED_DOMAIN } = require('../config/env');
 
-/**
- * The ONLY allowed email domain for UniCampus.
- * Enforced at the middleware level — requests from non-institutional
- * emails are rejected even if Firebase considers them valid.
- */
-const ALLOWED_DOMAIN = 'adityauniversity.in';
 
 /**
  * protect — Verify Firebase ID token and attach MongoDB user to req.user.
@@ -117,7 +112,7 @@ const protect = async (req, res, next) => {
     if (!user) {
       return next(
         new AppError(
-          'User account not found. Please log in via /auth/login to create your account.',
+          'User account not found. Please complete sign-in via /auth/sync to create your account.',
           401
         )
       );

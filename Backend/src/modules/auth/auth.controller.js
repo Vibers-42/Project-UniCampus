@@ -32,6 +32,7 @@ const authService = require('./auth.service');
 const { firebaseAdmin } = require('../../config/firebase');
 const env = require('../../config/env');
 const logger = require('../../shared/utils/logger');
+const { sendEmailNotification } = require('../../shared/notificationService');
 
 /**
  * POST /auth/sync
@@ -139,7 +140,6 @@ const resendVerification = catchAsync(async (req, res, next) => {
   );
 
   // Send via Nodemailer (uses existing notificationService infrastructure)
-  const { sendEmailNotification } = require('../../shared/notificationService');
   await sendEmailNotification(
     normalizedEmail,
     'Verify your UniCampus email',
