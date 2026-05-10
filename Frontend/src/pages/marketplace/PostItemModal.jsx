@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Upload, IndianRupee, Phone, Info, CheckCircle2 } from 'lucide-react';
 import { useMarketplace } from '../../hooks/useMarketplace';
-import { uploadToCloudinary } from '../../utils/upload';
+import { uploadImage } from '../../utils/upload';
 
 const CATEGORIES = ['Books', 'Calculators', 'Lab Equipment', 'Hostel Items', 'Gadgets', 'Cycles', 'Study Materials', 'Event Passes', 'Other'];
 const CONDITIONS = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
@@ -39,7 +39,7 @@ export default function PostItemModal({ isOpen, onClose, onSuccess }) {
     setLoading(true);
     try {
       // 1. Upload to Cloudinary
-      const imageUrl = await uploadToCloudinary(imageFile, 'marketplace');
+      const imageUrl = await uploadImage(imageFile, 'marketplace');
 
       // 2. Create listing
       await createListing({
