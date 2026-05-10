@@ -292,10 +292,12 @@ const getSidebarData = async (userId) => {
       .lean(),
   ]);
 
-  // ── Build Stats ──
+  // ── Build Stats & Categories ──
   const categoryMap = {};
+  const userEventIds = [];
   userRegistrations.forEach((reg) => {
     if (!reg.eventId) return;
+    userEventIds.push(reg.eventId._id || reg.eventId);
     const cat = reg.eventId.category;
     categoryMap[cat] = (categoryMap[cat] || 0) + 1;
   });
@@ -303,17 +305,50 @@ const getSidebarData = async (userId) => {
   const eventsJoined = userRegistrations.length;
   const workshopsAttended = categoryMap['workshop'] || 0;
   const hackathonsParticipated = categoryMap['hackathon'] || 0;
-  // Certificates = completed hackathons/workshops (simplified heuristic)
   const certificatesEarned = userRegistrations.filter(
     (r) => r.eventId && ['workshop', 'hackathon', 'seminar'].includes(r.eventId.category) && r.eventId.status === 'completed'
   ).length;
 
-  // Campus engagement level
   let engagementLevel = 'Newcomer';
   if (eventsJoined >= 10) engagementLevel = 'Campus Leader';
   else if (eventsJoined >= 6) engagementLevel = 'Active Participant';
   else if (eventsJoined >= 3) engagementLevel = 'Rising Star';
   else if (eventsJoined >= 1) engagementLevel = 'Explorer';
+
+  // ── Recommended Events ──
+  // Sort user's top categories
+  const sortedCategories = Object.keys(categoryMap).sort((a, b) => categoryMap[b] - categoryMap[a]);
+  let recommendedEvents = [];
+  
+  if (sortedCategories.length > 0) {
+    // Find upcoming events in top categories that user hasn't joined
+    recommendedEvents = await Event.find({
+      _id: { $nin: userEventIds },
+      category: { $in: sortedCategories },
+      startDate: { $gte: now },
+      status: { $ne: 'cancelled' },
+    })
+      .sort({ startDate: 1 })
+      .limit(3)
+      .select('title category startDate venue registeredCount maxParticipants status bannerUrl')
+      .lean();
+  }
+
+  // Fallback if not enough recommendations
+  if (recommendedEvents.length < 3) {
+    const existingRecIds = recommendedEvents.map(e => e._id);
+    const fallbackEvents = await Event.find({
+      _id: { $nin: [...userEventIds, ...existingRecIds] },
+      startDate: { $gte: now },
+      status: { $ne: 'cancelled' },
+    })
+      .sort({ registeredCount: -1, interestedCount: -1 }) // trending globally
+      .limit(3 - recommendedEvents.length)
+      .select('title category startDate venue registeredCount maxParticipants status bannerUrl')
+      .lean();
+    
+    recommendedEvents = [...recommendedEvents, ...fallbackEvents];
+  }
 
   // ── Build Campus Pulse ──
   const pulse = recentActivity
@@ -341,6 +376,12 @@ const getSidebarData = async (userId) => {
     })),
     trending: trendingEvents,
     pulse,
+    recommended: recommendedEvents.map(e => ({
+      ...e,
+      reason: sortedCategories.includes(e.category) 
+        ? `Based on your interest in ${e.category}`
+        : 'Trending on campus'
+    })),
   };
 };
 

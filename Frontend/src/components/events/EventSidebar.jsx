@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Flame, TrendingUp, Activity, Trophy, Calendar, Users } from 'lucide-react';
+import { Flame, TrendingUp, Activity, Trophy, Calendar, Users, Sparkles, Plus, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../config/api';
 
@@ -83,6 +83,16 @@ export default function EventSidebar() {
     fetchData();
   }, [fetchData]);
 
+  const handleRSVP = async (e, eventId, status) => {
+    e.preventDefault();
+    try {
+      await api.post(`/events/${eventId}/rsvp`, { status });
+      fetchData(); // Refresh sidebar data immediately to show updated stats/lists
+    } catch (err) {
+      console.error('[EventSidebar] RSVP failed', err);
+    }
+  };
+
   // Countdown tick — every 60s, only update state if component still mounted
   useEffect(() => {
     if (!data?.upcoming?.length) return;
@@ -107,11 +117,16 @@ export default function EventSidebar() {
   };
 
   return (
-    <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:block overflow-y-auto">
-      <div className="p-6 h-full">
+    <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:block overflow-y-auto overflow-x-hidden hide-scrollbar">
+      <div className="p-6">
         {/* ── 1. Your Event Stats ── */}
       <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
-        <h3 className="text-sm font-semibold text-dark-200 mb-3">Your Event Stats</h3>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-yellow-400/20 to-yellow-600/10 border border-yellow-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(250,204,21,0.1)]">
+            <Trophy size={14} className="text-yellow-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-dark-200">Your Event Stats</h3>
+        </div>
         {loading ? (
           <div className="space-y-2">
             {[...Array(4)].map((_, i) => <SkeletonBlock key={i} h="h-4" />)}
@@ -137,7 +152,12 @@ export default function EventSidebar() {
       {/* ── 2. Upcoming Events ── */}
       <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-dark-200">Upcoming Events</h3>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-400/20 to-primary-600/10 border border-primary-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(92,124,250,0.1)]">
+              <Calendar size={14} className="text-primary-400" />
+            </div>
+            <h3 className="text-sm font-semibold text-dark-200">Upcoming Events</h3>
+          </div>
           <Link to="/events" className="text-[10px] text-primary-400 hover:text-primary-300 transition-colors">
             View all
           </Link>
@@ -175,9 +195,59 @@ export default function EventSidebar() {
         )}
       </div>
 
-      {/* ── 3. Trending This Week ── */}
+      {/* ── 3. Recommended For You ── */}
       <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
-        <h3 className="text-sm font-semibold text-dark-200 mb-4">Trending This Week</h3>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-400/20 to-purple-600/10 border border-purple-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+            <Sparkles size={14} className="text-purple-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-dark-200">Recommended For You</h3>
+        </div>
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <SkeletonBlock h="h-10" w="w-full" />
+              </div>
+            ))}
+          </div>
+        ) : !data?.recommended?.length ? (
+          <p className="text-xs text-dark-500 py-2">Keep exploring events for recommendations!</p>
+        ) : (
+          <div className="space-y-4">
+            {data.recommended.map((event) => (
+              <Link key={event._id} to={`/events/${event._id}`} className="block group bg-dark-800/40 rounded-xl p-3 border border-dark-700/50 hover:border-primary-500/30 transition-colors">
+                <div className="flex gap-3">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-dark-800">
+                    <img src={event.bannerUrl || 'https://via.placeholder.com/150'} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-medium text-dark-200 group-hover:text-primary-300 transition-colors truncate">{event.title}</h4>
+                    <p className="text-[10px] text-dark-500 truncate mb-2">{event.reason}</p>
+                    <div className="flex items-center gap-2">
+                      <button onClick={(e) => handleRSVP(e, event._id, 'registered')} className="flex-1 py-1.5 bg-primary-600 hover:bg-primary-500 text-white text-[10px] font-semibold rounded-md transition-colors flex items-center justify-center gap-1">
+                        <Check size={12} /> RSVP
+                      </button>
+                      <button onClick={(e) => handleRSVP(e, event._id, 'interested')} className="flex-1 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-200 text-[10px] font-semibold rounded-md transition-colors flex items-center justify-center gap-1">
+                        <Plus size={12} /> Interested
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── 4. Trending This Week ── */}
+      <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-400/20 to-orange-600/10 border border-orange-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.1)]">
+            <TrendingUp size={14} className="text-orange-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-dark-200">Trending This Week</h3>
+        </div>
         {loading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
@@ -209,9 +279,14 @@ export default function EventSidebar() {
         )}
       </div>
 
-      {/* ── 4. Campus Pulse ── */}
+      {/* ── 5. Campus Pulse ── */}
       <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
-        <h3 className="text-sm font-semibold text-dark-200 mb-4">Campus Pulse</h3>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-400/20 to-green-600/10 border border-green-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+            <Activity size={14} className="text-green-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-dark-200">Campus Pulse</h3>
+        </div>
         {loading ? (
           <div className="space-y-2.5">
             {[...Array(4)].map((_, i) => <SkeletonBlock key={i} h="h-3.5" />)}
