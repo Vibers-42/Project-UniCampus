@@ -15,9 +15,10 @@
 
 const Groq = require('groq-sdk');
 const logger = require('./utils/logger');
+const { env } = require('../config');
 
 // ── Startup diagnostic ──────────────────────────────────────
-const _key = process.env.GROQ_API_KEY || '';
+const _key = env.GROQ_API_KEY || '';
 console.log('[aiService] Provider: Groq');
 console.log('[aiService] GROQ_API_KEY:', _key ? `${_key.slice(0, 10)}... (loaded)` : 'MISSING!');
 
@@ -26,7 +27,7 @@ console.log('[aiService] GROQ_API_KEY:', _key ? `${_key.slice(0, 10)}... (loaded
 let _groqClient = null;
 const getGroq = () => {
   if (!_groqClient) {
-    _groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    _groqClient = new Groq({ apiKey: env.GROQ_API_KEY });
   }
   return _groqClient;
 };
@@ -41,7 +42,7 @@ const getGroq = () => {
  * @returns {Promise<{success:boolean, reply:string}>}
  */
 const askAI = async (systemPrompt, userMessage, history = []) => {
-  const apiKey = process.env.GROQ_API_KEY || '';
+  const apiKey = env.GROQ_API_KEY || '';
 
   if (!apiKey) {
     logger.error('[aiService] GROQ_API_KEY is not set');

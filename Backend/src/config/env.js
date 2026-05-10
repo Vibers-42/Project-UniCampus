@@ -80,6 +80,9 @@ const env = Object.freeze({
   // Only aiService.js reads these — swap providers without touching any module.
   LLM_PROVIDER: process.env.LLM_PROVIDER || '',
   LLM_API_KEY: process.env.LLM_API_KEY || '',
+  
+  // ───── Groq ─────
+  GROQ_API_KEY: process.env.GROQ_API_KEY || '',
 });
 
 module.exports = env;
