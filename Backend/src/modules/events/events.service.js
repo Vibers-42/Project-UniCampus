@@ -292,8 +292,6 @@ const getSidebarData = async (userId) => {
         },
       },
     ]),
-
-    ]),
   ]);
 
   // ── Build Stats & Categories ──
