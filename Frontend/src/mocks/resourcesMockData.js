@@ -3,6 +3,9 @@
  * Mock data for testing Academic Resources module without a populated backend.
  */
 
+/* ── GLOBAL MOCK FLAG ── */
+export const USE_MOCK_DATA = true;
+
 export const mockResources = [
   {
     _id: "res_001",
@@ -12,7 +15,7 @@ export const mockResources = [
     fileType: "pdf",
     publicId: "mock/res_001",
     subject: "Data Structures & Algorithms",
-    department: "AI & Machine Learning",
+    department: "Computer Science Engineering", // Changed to match filter options
     year: 2,
     semester: 3,
     category: "notes",
@@ -20,7 +23,7 @@ export const mockResources = [
       _id: "user_001",
       fullName: "Aryan Patel",
       avatar: null,
-      department: "AI & Machine Learning",
+      department: "Computer Science Engineering",
       year: 3
     },
     tags: ["unit-1", "unit-2", "important", "exam-ready"],
@@ -40,7 +43,7 @@ export const mockResources = [
     fileType: "pdf",
     publicId: "mock/res_002",
     subject: "Machine Learning",
-    department: "AI & Machine Learning",
+    department: "Computer Science Engineering", // Changed to match filter options
     year: 3,
     semester: 5,
     category: "pyq",
@@ -48,7 +51,7 @@ export const mockResources = [
       _id: "user_002",
       fullName: "Sneha Reddy",
       avatar: null,
-      department: "AI & Machine Learning",
+      department: "Computer Science Engineering",
       year: 4
     },
     tags: ["pyq", "2024", "solved"],
@@ -124,7 +127,7 @@ export const mockResources = [
     fileType: "pdf",
     publicId: "mock/res_005",
     subject: "Deep Learning",
-    department: "AI & Machine Learning",
+    department: "Information Technology", // Changed to match filter options
     year: 4,
     semester: 7,
     category: "reference",
@@ -132,7 +135,7 @@ export const mockResources = [
       _id: "user_001",
       fullName: "Aryan Patel",
       avatar: null,
-      department: "AI & Machine Learning",
+      department: "Information Technology",
       year: 3
     },
     tags: ["deep-learning", "cnn", "transformer", "reference"],
@@ -209,7 +212,7 @@ export const mockResources = [
     fileType: "pdf",
     publicId: "mock/res_008",
     subject: "Python Programming",
-    department: "AI & Machine Learning",
+    department: "Information Technology", // Changed to match filter options
     year: 1,
     semester: 2,
     category: "lab-manual",
@@ -217,7 +220,7 @@ export const mockResources = [
       _id: "user_002",
       fullName: "Sneha Reddy",
       avatar: null,
-      department: "AI & Machine Learning",
+      department: "Information Technology",
       year: 4
     },
     tags: ["python", "lab", "programs", "oop"],
@@ -232,8 +235,8 @@ export const mockResources = [
 ];
 
 export const mockTopContributors = [
-  { _id: "user_001", fullName: "Aryan Patel", department: "AI & ML", uploadCount: 12 },
-  { _id: "user_002", fullName: "Sneha Reddy", department: "AI & ML", uploadCount: 9 },
+  { _id: "user_001", fullName: "Aryan Patel", department: "IT", uploadCount: 12 },
+  { _id: "user_002", fullName: "Sneha Reddy", department: "IT", uploadCount: 9 },
   { _id: "user_005", fullName: "Rahul Sharma", department: "CSE", uploadCount: 7 }
 ];
 

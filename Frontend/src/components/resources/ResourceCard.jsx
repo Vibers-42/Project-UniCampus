@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { voteResource, downloadResource, deleteResource } from '../../api/resource.api';
+import { USE_MOCK_DATA } from '../../mocks/resourcesMockData';
 
 /* ── Constants ────────────────────────────────────────────────────────────── */
 const FILE_STYLE = {
@@ -31,7 +32,7 @@ const FILE_STYLE = {
 };
 
 const CAT_STYLE = {
-  notes: { bg: 'rgba(92,124,250,0.1)', color: '#748ffc', border: 'rgba(92,124,250,0.2)' },
+  notes: { bg: 'rgba(108,99,255,0.1)', color: '#6c63ff', border: 'rgba(108,99,255,0.2)' },
   pyq: { bg: 'rgba(251,146,60,0.1)', color: '#fb923c', border: 'rgba(251,146,60,0.2)' },
   'lab-manual': { bg: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: 'rgba(167,139,250,0.2)' },
   assignment: { bg: 'rgba(250,204,21,0.1)', color: '#facc15', border: 'rgba(250,204,21,0.2)' },
@@ -64,7 +65,7 @@ function CompactCard({ resource }) {
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
           {resource.subject && (
-            <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '20px', background: 'rgb(var(--color-primary-500) / 0.1)', color: 'rgb(var(--color-primary-400))' }}>
+            <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '20px', background: 'rgba(108,99,255,0.1)', color: '#6c63ff' }}>
               {resource.subject}
             </span>
           )}
@@ -122,10 +123,12 @@ export default function ResourceCard({
     toastRef.current = setTimeout(() => setToast(null), 2500);
   };
 
-  /* ── Action handlers (zero logic changes) ── */
+  /* ── Action handlers ── */
   const handleVote = useCallback(async (e) => {
     e.stopPropagation();
     if (!user) return;
+    
+    // Optimistic update
     setResource(prev => {
       const prev2 = prev.upvotes || [];
       const voted = prev2.some(u => (typeof u === 'string' ? u : u?._id) === user._id);
@@ -136,13 +139,30 @@ export default function ResourceCard({
           : [...prev2, user._id],
       };
     });
+
+    if (USE_MOCK_DATA) {
+      showToast(isVoted ? 'Vote removed' : 'Voted!');
+      return;
+    }
+
     try { await voteResource(resource._id); }
     catch { setResource(initialResource); }
-  }, [resource._id, user, initialResource]);
+  }, [resource._id, user, initialResource, isVoted]);
 
   const handleDownload = useCallback(async (e) => {
     e.stopPropagation();
     setDownloading(true);
+
+    if (USE_MOCK_DATA) {
+      setTimeout(() => {
+        window.open(resource.fileUrl, '_blank', 'noopener,noreferrer');
+        setResource(prev => ({ ...prev, downloadCount: (prev.downloadCount || 0) + 1 }));
+        setDownloading(false);
+        showToast('Download started (Mock)');
+      }, 500);
+      return;
+    }
+
     try {
       const res = await downloadResource(resource._id);
       const url = res.data?.data?.downloadUrl;
@@ -152,7 +172,7 @@ export default function ResourceCard({
       }
     } catch { showToast('Download failed', 'error'); }
     finally { setDownloading(false); }
-  }, [resource._id]);
+  }, [resource._id, resource.fileUrl]);
 
   const handleSave = useCallback((e) => {
     e.stopPropagation();
@@ -172,6 +192,14 @@ export default function ResourceCard({
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
+    if (USE_MOCK_DATA) {
+      setTimeout(() => {
+        showToast('Deleted (Mock)');
+        if (onDeleted) onDeleted(resource._id);
+        setDeleting(false);
+      }, 500);
+      return;
+    }
     try {
       await deleteResource(resource._id);
       showToast('Deleted');
@@ -198,7 +226,7 @@ export default function ResourceCard({
         cursor: 'default',
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.borderColor = 'rgba(92,124,250,0.35)';
+        e.currentTarget.style.borderColor = 'rgba(108,99,255,0.35)';
         e.currentTarget.style.transform = 'translateY(-2px)';
         e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
       }}
@@ -213,7 +241,7 @@ export default function ResourceCard({
         <div style={{
           position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)',
           zIndex: 50, padding: '5px 14px', borderRadius: '20px', fontSize: '12px',
-          fontWeight: 500, background: toast.type === 'error' ? '#ef4444' : 'rgb(var(--color-primary-500))',
+          fontWeight: 500, background: toast.type === 'error' ? '#ef4444' : '#6c63ff',
           color: '#fff', whiteSpace: 'nowrap', pointerEvents: 'none',
         }}>
           {toast.msg}
@@ -330,7 +358,7 @@ export default function ResourceCard({
         ) : (
           <div style={{
             width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
-            background: 'linear-gradient(135deg, rgb(var(--color-primary-600)), rgb(var(--color-primary-400)))',
+            background: 'linear-gradient(135deg, #6c63ff, #5a52d5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '9px', color: '#fff', fontWeight: 700,
           }}>
@@ -381,11 +409,11 @@ export default function ResourceCard({
         <ActionBtn icon={<Download size={12} />} label={downloading ? '…' : 'Download'} onClick={handleDownload} disabled={downloading} />
         {/* Upvote */}
         <ActionBtn
-          icon={<ThumbsUp size={12} style={isVoted ? { fill: 'rgb(var(--color-primary-400))' } : {}} />}
+          icon={<ThumbsUp size={12} style={isVoted ? { fill: '#6c63ff' } : {}} />}
           label={String(voteCount)}
           onClick={handleVote}
           active={isVoted}
-          activeStyle={{ background: 'rgba(92,124,250,0.12)', borderColor: 'rgba(92,124,250,0.3)', color: 'rgb(var(--color-primary-300))' }}
+          activeStyle={{ background: 'rgba(108,99,255,0.12)', borderColor: 'rgba(108,99,255,0.3)', color: '#6c63ff' }}
         />
         {/* Save */}
         <ActionBtn

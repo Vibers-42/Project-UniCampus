@@ -10,11 +10,8 @@ import UploadResourceModal from '../../components/resources/UploadResourceModal'
 import PDFPreviewModal from '../../components/resources/PDFPreviewModal';
 import ResourceRightPanel from '../../components/resources/ResourceRightPanel';
 
-// Import mock data
-import { mockResources } from '../../mocks/resourcesMockData';
-
-/* ── MOCK DATA FLAG ── */
-const USE_MOCK_DATA = true;
+// Import mock data and flag
+import { mockResources, USE_MOCK_DATA } from '../../mocks/resourcesMockData';
 
 /* ── Constants ── */
 const SORT_OPTIONS = [
@@ -70,6 +67,21 @@ export default function ResourcesPage() {
   const observerRef = useRef(null);
   const searchTimerRef = useRef(null);
 
+  /* ── Sync state when URL params change (Fix for "View my uploads" link) ── */
+  useEffect(() => {
+    setFilters({
+      department: getP('department'),
+      year: getP('year'),
+      semester: getP('semester'),
+      subject: getP('subject'),
+      category: getP('category'),
+    });
+    setSearch(getP('search'));
+    setSort(getP('sort', 'newest'));
+    setActiveTab(getP('tab', 'all'));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   /* ── Sync URL params ── */
   const syncParams = useCallback((overrides = {}) => {
     const combined = { ...filters, search, sort, tab: activeTab, ...overrides };
@@ -94,7 +106,7 @@ export default function ResourcesPage() {
         if (search) {
           filtered = filtered.filter(r => r.title.toLowerCase().includes(search.toLowerCase()));
         }
-        // department
+        // department (Normal filters)
         if (filters.department) {
           filtered = filtered.filter(r => r.department === filters.department);
         }
@@ -116,7 +128,7 @@ export default function ResourcesPage() {
         }
         // tabs
         if (activeTab === 'my-uploads') {
-          // Hardcode current mock user as user_001 (Aryan Patel)
+          // Hardcode current mock user as user_001 (Aryan Patel) for testing
           filtered = filtered.filter(r => r.uploadedBy?._id === 'user_001');
         } else if (activeTab === 'bookmarked') {
           filtered = filtered.filter(r => savedIds.includes(r._id));
@@ -150,10 +162,6 @@ export default function ResourcesPage() {
       } else {
         const params = { ...filters, search: search || undefined, sort, page: pg, limit: 12 };
         if (activeTab === 'my-uploads' && user) params.uploadedBy = user._id;
-        if (activeTab === 'bookmarked' && savedIds.length === 0) {
-          setResources([]); setTotalPages(1); setHasMore(false);
-          return;
-        }
         const res = await getResources(params);
         const data = res.data?.data;
         let items = data?.items || [];
@@ -167,18 +175,18 @@ export default function ResourcesPage() {
     finally { setLoading(false); setLoadingMore(false); }
   }, [filters, search, sort, activeTab, user, savedIds]);
 
+  // Main fetch effect
   useEffect(() => {
     setPage(1);
     fetchResources(1, false);
-    syncParams();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, sort, activeTab]);
+  }, [filters, sort, activeTab, search]);
 
   const handleSearch = (val) => {
     setSearch(val);
     clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => {
-      setPage(1); fetchResources(1, false);
+      syncParams({ search: val });
     }, 400);
   };
 
@@ -194,7 +202,7 @@ export default function ResourcesPage() {
   }, [hasMore, loadingMore, page, fetchResources]);
 
   /* ── Handlers ── */
-  const handleFiltersChange = (overrides) => setFilters(prev => ({ ...prev, ...overrides }));
+  const handleFiltersChange = (overrides) => syncParams(overrides);
 
   const handleSaveToggle = (id, wasSaved) => {
     setSavedIds(prev => {
@@ -207,8 +215,7 @@ export default function ResourcesPage() {
   const handleDeleted = (id) => setResources(prev => prev.filter(r => r._id !== id));
 
   const handleQuickFilter = (key, value) => {
-    if (key === 'tab') { setActiveTab(value || 'all'); return; }
-    setFilters(prev => ({ ...prev, [key]: value }));
+    syncParams({ [key]: value });
   };
 
   const handleUploadSuccess = () => {
@@ -298,7 +305,7 @@ export default function ResourcesPage() {
             return (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => syncParams({ tab: tab.key })}
                 style={{
                   padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: active ? 500 : 400,
                   border: active ? '0.5px solid #6c63ff' : '0.5px solid transparent', cursor: 'pointer', transition: 'all 0.15s ease',
@@ -333,7 +340,7 @@ export default function ResourcesPage() {
             return (
               <button
                 key={opt.value}
-                onClick={() => setSort(opt.value)}
+                onClick={() => syncParams({ sort: opt.value })}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '5px',
                   padding: '6px 11px', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
