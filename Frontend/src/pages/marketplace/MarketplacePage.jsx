@@ -3,7 +3,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useMarketplace } from '../../hooks/useMarketplace';
 import MarketplaceCard from '../../components/marketplace/MarketplaceCard';
 import PostItemModal from './PostItemModal';
-import { Search, Filter, Plus, PackageSearch } from 'lucide-react';
+import { Search, Filter, Plus, Package } from 'lucide-react';
 
 const CATEGORIES = ['All', 'Books', 'Calculators', 'Lab Equipment', 'Hostel Items', 'Gadgets', 'Cycles', 'Study Materials', 'Event Passes', 'Other'];
 
@@ -100,7 +100,7 @@ export default function MarketplacePage() {
       ) : (
         <div className="auth-card py-24 flex flex-col items-center justify-center text-center border-dashed border-dark-700 bg-dark-900/40 backdrop-blur-sm">
           <div className="w-20 h-20 bg-dark-800 rounded-3xl flex items-center justify-center mb-6 shadow-inner border border-dark-700">
-            <PackageSearch size={40} className="text-dark-500" />
+            <Package size={40} className="text-dark-500" />
           </div>
           <h3 className="text-dark-100 font-bold text-xl mb-2">No items found</h3>
           <p className="text-dark-400 text-sm max-w-sm mx-auto leading-relaxed">

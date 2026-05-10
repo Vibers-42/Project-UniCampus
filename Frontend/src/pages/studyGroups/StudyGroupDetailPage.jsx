@@ -97,14 +97,14 @@ export default function StudyGroupDetailPage() {
     );
   }
 
-  if (error) {
+  if (error || !group) {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center py-32 gap-6">
           <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center border border-red-500/20 text-red-500">
             <Shield size={40} />
           </div>
-          <h2 className="text-2xl font-bold text-dark-100">{error}</h2>
+          <h2 className="text-2xl font-bold text-dark-100">{error || 'Group not found'}</h2>
           <Link to="/study-groups" className="btn-secondary px-8">Back to Groups</Link>
         </div>
       </DashboardLayout>
