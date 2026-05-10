@@ -12,8 +12,8 @@
  *   bannerUrl stores a Cloudinary URL string — NEVER a Buffer.
  *
  * INDEXES:
- *   - organiser: find events by creator
- *   - date: sort/filter upcoming vs past events
+ *   - organizerId: find events by creator
+ *   - startDate: sort/filter upcoming vs past events
  *   - category: filter by event type
  *   - text index on title + description: full-text search
  */
@@ -29,10 +29,18 @@ const eventsSchema = new mongoose.Schema(
       maxlength: [200, 'Title cannot exceed 200 characters'],
     },
 
-    organiser: {
+    organizerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Organizer ID is required'],
+      index: true,
+    },
+
+    campusId: {
       type: String,
-      required: [true, 'Organiser email is required'],
-      index: true, // Find events by organiser
+      trim: true,
+      default: 'main', // Default to main campus for MVP
+      index: true,
     },
 
     description: {
@@ -49,44 +57,63 @@ const eventsSchema = new mongoose.Schema(
       default: '',
     },
 
-    date: {
+    startDate: {
       type: Date,
-      required: [true, 'Event date is required'],
-      index: true, // Sort upcoming/past
+      required: [true, 'Event start date is required'],
+      index: true,
     },
 
     endDate: {
       type: Date, // Optional — for multi-day events
     },
 
+    registrationDeadline: {
+      type: Date,
+    },
+
     category: {
       type: String,
       enum: {
-        values: ['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'other'],
-        message: 'Category must be workshop, hackathon, seminar, cultural, sports, meetup, or other',
+        values: ['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'club', 'other'],
+        message: 'Invalid category',
       },
       default: 'other',
-      index: true, // Filter by category
+      index: true,
     },
 
     registrationLink: {
-      type: String,
+      type: String, // External link if needed
       default: '',
     },
 
     bannerUrl: {
       type: String,
-      default: '', // Cloudinary URL — never binary
+      default: '', // Cloudinary URL
     },
 
-    rsvpList: {
-      type: [String], // Array of email strings (who RSVPed)
-      default: [],
-    },
-
-    maxCapacity: {
+    maxParticipants: {
       type: Number,
       default: 0, // 0 = unlimited
+    },
+
+    interestedCount: {
+      type: Number,
+      default: 0,
+    },
+
+    registeredCount: {
+      type: Number,
+      default: 0,
+    },
+
+    status: {
+      type: String,
+      enum: {
+        values: ['upcoming', 'ongoing', 'completed', 'cancelled'],
+        message: 'Status must be upcoming, ongoing, completed, or cancelled',
+      },
+      default: 'upcoming',
+      index: true,
     },
 
     tags: {
@@ -107,14 +134,9 @@ const eventsSchema = new mongoose.Schema(
 // Full-text search across title and description
 eventsSchema.index({ title: 'text', description: 'text' });
 
-// Virtual: RSVP count
-eventsSchema.virtual('rsvpCount').get(function () {
-  return this.rsvpList.length;
-});
-
 // Virtual: is event in the past?
 eventsSchema.virtual('isPast').get(function () {
-  return this.date < new Date();
+  return this.startDate < new Date();
 });
 
 // Ensure virtuals are included in JSON output

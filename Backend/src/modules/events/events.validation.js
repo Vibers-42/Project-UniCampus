@@ -1,176 +1,113 @@
 /**
  * @file events.validation.js — Express-Validator Chains for Event Routes
- *
- * SCOPE:
- *   Internal to events/ — only events.routes.js imports this.
- *
- * USAGE:
- *   router.post('/', validateCreate, validate, ctrl.create);
- *   router.get('/:id', validateId, validate, ctrl.getById);
  */
 
 const { body, param, query } = require('express-validator');
 
-/**
- * validateCreate — Rules for POST /events
- * Enforces future-only dates at the validation layer as a first check.
- * (The service layer also enforces this for safety.)
- */
 const validateCreate = [
   body('title')
     .trim()
-    .notEmpty()
-    .withMessage('Event title is required')
-    .isLength({ max: 200 })
-    .withMessage('Title cannot exceed 200 characters'),
+    .notEmpty().withMessage('Event title is required')
+    .isLength({ max: 200 }).withMessage('Title cannot exceed 200 characters'),
 
-  body('date')
-    .notEmpty()
-    .withMessage('Event date is required')
-    .isISO8601()
-    .withMessage('Date must be a valid ISO 8601 format')
+  body('campusId')
+    .optional()
+    .trim(),
+
+  body('startDate')
+    .notEmpty().withMessage('Event start date is required')
+    .isISO8601().withMessage('Date must be a valid ISO 8601 format')
     .custom((value) => {
       if (new Date(value) <= new Date()) {
-        throw new Error('Event date must be in the future');
+        throw new Error('Event start date must be in the future');
       }
       return true;
     }),
 
   body('endDate')
     .optional()
-    .isISO8601()
-    .withMessage('End date must be a valid ISO 8601 format')
+    .isISO8601().withMessage('End date must be a valid ISO 8601 format')
     .custom((value, { req }) => {
-      if (req.body.date && new Date(value) <= new Date(req.body.date)) {
+      if (req.body.startDate && new Date(value) <= new Date(req.body.startDate)) {
         throw new Error('End date must be after start date');
       }
       return true;
     }),
 
+  body('registrationDeadline')
+    .optional()
+    .isISO8601().withMessage('Registration deadline must be a valid ISO 8601 format'),
+
   body('venue')
     .optional()
     .trim()
-    .isLength({ max: 200 })
-    .withMessage('Venue cannot exceed 200 characters'),
+    .isLength({ max: 200 }).withMessage('Venue cannot exceed 200 characters'),
 
   body('description')
     .optional()
     .trim()
-    .isLength({ max: 2000 })
-    .withMessage('Description cannot exceed 2000 characters'),
+    .isLength({ max: 2000 }).withMessage('Description cannot exceed 2000 characters'),
 
   body('category')
     .optional()
-    .isIn(['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'other'])
-    .withMessage('Category must be workshop, hackathon, seminar, cultural, sports, meetup, or other'),
+    .isIn(['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'club', 'other'])
+    .withMessage('Invalid category'),
 
   body('registrationLink')
     .optional()
     .trim()
-    .isURL()
-    .withMessage('Registration link must be a valid URL'),
+    .isURL().withMessage('Registration link must be a valid URL'),
 
   body('bannerUrl')
     .optional()
     .trim()
-    .isURL()
-    .withMessage('Banner URL must be a valid URL'),
+    .isURL().withMessage('Banner URL must be a valid URL'),
 
-  body('maxCapacity')
+  body('maxParticipants')
     .optional()
-    .isInt({ min: 0 })
-    .withMessage('Max capacity must be a non-negative number'),
+    .isInt({ min: 0 }).withMessage('Max participants must be a non-negative number'),
 
   body('tags')
     .optional()
-    .isArray({ max: 10 })
-    .withMessage('Tags must be an array with at most 10 items'),
+    .isArray({ max: 10 }).withMessage('Tags must be an array with at most 10 items'),
 
   body('tags.*')
     .optional()
     .isString()
     .trim()
-    .isLength({ min: 1, max: 30 })
-    .withMessage('Each tag must be a non-empty string under 30 characters'),
+    .isLength({ min: 1, max: 30 }).withMessage('Each tag must be a non-empty string under 30 characters'),
 ];
 
-/**
- * validateUpdate — Rules for PATCH /events/:id
- * Same fields as create but all optional.
- */
 const validateUpdate = [
-  param('id')
-    .isMongoId()
-    .withMessage('Invalid event ID'),
-
-  body('title')
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage('Title cannot be empty')
-    .isLength({ max: 200 })
-    .withMessage('Title cannot exceed 200 characters'),
-
-  body('date')
-    .optional()
-    .isISO8601()
-    .withMessage('Date must be a valid ISO 8601 format'),
-
-  body('venue')
-    .optional()
-    .trim()
-    .isLength({ max: 200 })
-    .withMessage('Venue cannot exceed 200 characters'),
-
-  body('description')
-    .optional()
-    .trim()
-    .isLength({ max: 2000 })
-    .withMessage('Description cannot exceed 2000 characters'),
-
-  body('category')
-    .optional()
-    .isIn(['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'other'])
-    .withMessage('Invalid category'),
-
-  body('maxCapacity')
-    .optional()
-    .isInt({ min: 0 })
-    .withMessage('Max capacity must be a non-negative number'),
-
-  body('tags')
-    .optional()
-    .isArray({ max: 10 })
-    .withMessage('Tags must be an array with at most 10 items'),
+  param('id').isMongoId().withMessage('Invalid event ID'),
+  
+  body('title').optional().trim().notEmpty().withMessage('Title cannot be empty').isLength({ max: 200 }),
+  body('startDate').optional().isISO8601(),
+  body('endDate').optional().isISO8601(),
+  body('registrationDeadline').optional().isISO8601(),
+  body('venue').optional().trim().isLength({ max: 200 }),
+  body('description').optional().trim().isLength({ max: 2000 }),
+  body('category').optional().isIn(['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'club', 'other']),
+  body('maxParticipants').optional().isInt({ min: 0 }),
+  body('status').optional().isIn(['upcoming', 'ongoing', 'completed', 'cancelled']),
+  body('tags').optional().isArray({ max: 10 }),
 ];
 
-/**
- * validateId — Rules for routes with :id param
- */
 const validateId = [
-  param('id')
-    .isMongoId()
-    .withMessage('Invalid event ID'),
+  param('id').isMongoId().withMessage('Invalid event ID'),
 ];
 
-/**
- * validateQuery — Rules for GET /events query params
- */
 const validateQuery = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
+  query('page').optional().isInt({ min: 1 }),
+  query('limit').optional().isInt({ min: 1, max: 50 }),
+  query('category').optional().isIn(['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'club', 'other']),
+];
 
-  query('limit')
+const validateRsvp = [
+  body('status')
     .optional()
-    .isInt({ min: 1, max: 50 })
-    .withMessage('Limit must be between 1 and 50'),
-
-  query('category')
-    .optional()
-    .isIn(['workshop', 'hackathon', 'seminar', 'cultural', 'sports', 'meetup', 'other'])
-    .withMessage('Invalid category'),
+    .isIn(['interested', 'registered', 'attending'])
+    .withMessage('Status must be interested, registered, or attending'),
 ];
 
 module.exports = {
@@ -178,4 +115,5 @@ module.exports = {
   validateUpdate,
   validateId,
   validateQuery,
+  validateRsvp,
 };

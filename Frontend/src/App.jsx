@@ -14,6 +14,9 @@ import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 // App pages
 import OnboardingPage from './pages/OnboardingPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
+import EventsPage from './pages/events/EventsPage';
+import EventDetailPage from './pages/events/EventDetailPage';
+import CreateEventPage from './pages/events/CreateEventPage';
 
 export default function App() {
   return (
@@ -33,6 +36,9 @@ export default function App() {
 
           {/* ── Protected app routes ── */}
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
+          <Route path="/events/create" element={<ProtectedRoute><CreateEventPage /></ProtectedRoute>} />
+          <Route path="/events/:id" element={<ProtectedRoute><EventDetailPage /></ProtectedRoute>} />
 
           {/* ── Default redirect ── */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

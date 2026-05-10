@@ -101,8 +101,8 @@ const usersSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ['student', 'clubAdmin', 'admin'],
-        message: 'Role must be student, clubAdmin, or admin',
+        values: ['student', 'clubAdmin', 'admin', 'organizer', 'coordinator', 'club_lead'],
+        message: 'Role must be student, clubAdmin, admin, organizer, coordinator, or club_lead',
       },
       default: 'student',
     },
