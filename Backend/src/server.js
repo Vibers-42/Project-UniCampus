@@ -24,6 +24,10 @@ const logger = require('./shared/utils/logger');
 const cron = require('node-cron');
 const { cleanupUnverifiedUsers } = require('./utils/cleanupUnverifiedUsers');
 
+const groupRoutes = require('./routes/studygroup.routes');
+const http = require('http');
+const { initSocket } = require('./config/socket');
+
 /**
  * Start the server.
  * Connects to the database first, then begins listening for requests.
@@ -33,8 +37,26 @@ const startServer = async () => {
     // ── Step 1: Connect to MongoDB ──
     await connectDB();
 
-    // ── Step 2: Start HTTP server ──
-    app.listen(env.PORT, () => {
+    // ── Step 2: Start HTTP + Socket.io server ──
+    const server = http.createServer(app);
+    const io = initSocket(server);
+    app.set('io', io); // Make io accessible in controllers via req.app.get('io')
+
+    app.use('/api/v1/groups', groupRoutes);
+
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.error(
+          `Port ${env.PORT} is already in use. ` +
+          `Kill the process using it (run: netstat -ano | findstr :${env.PORT}) then restart.`
+        );
+      } else {
+        logger.error('Server error:', err);
+      }
+      process.exit(1);
+    });
+
+    server.listen(env.PORT, () => {
       logger.info(
         `Server running in ${env.NODE_ENV} mode on port ${env.PORT}`
       );
