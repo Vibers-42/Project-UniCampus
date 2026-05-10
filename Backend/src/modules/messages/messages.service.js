@@ -99,7 +99,7 @@ const getMessages = async (conversationId, userId) => {
     throw new AppError('Conversation not found', 404);
   }
 
-  if (!conversation.participants.includes(userId)) {
+  if (!conversation.participants.some(p => p.toString() === userId.toString())) {
     throw new AppError('You do not have access to this conversation', 403);
   }
 
@@ -127,7 +127,7 @@ const sendMessage = async (conversationId, senderId, content) => {
     throw new AppError('Conversation not found', 404);
   }
 
-  if (!conversation.participants.includes(senderId)) {
+  if (!conversation.participants.some(p => p.toString() === senderId.toString())) {
     throw new AppError('You do not have access to this conversation', 403);
   }
 

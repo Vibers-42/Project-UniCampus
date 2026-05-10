@@ -4,7 +4,7 @@ const { parsePagination, buildPaginationResult } = require('../../shared/utils/p
 
 const create = async (data, userId) => {
   const opportunity = await Opportunity.create({ ...data, postedBy: userId });
-  return opportunity.populate('postedBy', 'fullName avatar role badges');
+  return await opportunity.populate('postedBy', 'fullName avatar role badges');
 };
 
 const getAll = async (filters = {}) => {

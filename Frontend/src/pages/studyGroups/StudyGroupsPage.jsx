@@ -173,6 +173,7 @@ export default function StudyGroupsPage() {
                 <input 
                   type="text" 
                   required
+                  maxLength={100}
                   value={newGroup.name}
                   onChange={(e) => setNewGroup({...newGroup, name: e.target.value})}
                   className="input-field"
@@ -195,6 +196,7 @@ export default function StudyGroupsPage() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-dark-400 uppercase tracking-widest px-1">Description</label>
                 <textarea 
+                  maxLength={500}
                   value={newGroup.description}
                   onChange={(e) => setNewGroup({...newGroup, description: e.target.value})}
                   className="input-field h-24 resize-none"

@@ -6,7 +6,7 @@ const { parsePagination, buildPaginationResult } = require('../../shared/utils/p
 
 const createPost = async (data, userId) => {
   const post = await Post.create({ ...data, authorId: userId });
-  return post.populate('authorId', 'fullName avatar role department badges');
+  return await post.populate('authorId', 'fullName avatar role department badges');
 };
 
 const getFeed = async (filters = {}, userId) => {
@@ -77,7 +77,7 @@ const addComment = async (id, userId, content) => {
   post.commentsCount += 1;
   await post.save();
   
-  return comment.populate('authorId', 'fullName avatar role badges');
+  return await comment.populate('authorId', 'fullName avatar role badges');
 };
 
 const getComments = async (id, filters = {}) => {
