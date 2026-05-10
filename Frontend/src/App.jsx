@@ -35,6 +35,15 @@ import ItemDetailPage from './pages/marketplace/ItemDetailPage';
 // AI Doubt Solver
 import AIDoubtSolverPage from './pages/ai/AIDoubtSolverPage';
 
+// Teammates
+import TeammatesPage from './pages/teammates/TeammatesPage';
+import TeammatesDetailPage from './pages/teammates/TeammatesDetailPage';
+import CreateTeammatesPage from './pages/teammates/CreateTeammatesPage';
+
+// Portfolio
+import PortfolioPage from './pages/portfolio/PortfolioPage';
+import EditPortfolioPage from './pages/portfolio/EditPortfolioPage';
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -69,6 +78,14 @@ export default function App() {
           <Route path="/marketplace/:id" element={<ProtectedRoute><ItemDetailPage /></ProtectedRoute>} />
 
           <Route path="/ai-solver" element={<ProtectedRoute><AIDoubtSolverPage /></ProtectedRoute>} />
+
+          <Route path="/teammates" element={<ProtectedRoute><TeammatesPage /></ProtectedRoute>} />
+          <Route path="/teammates/create" element={<ProtectedRoute><CreateTeammatesPage /></ProtectedRoute>} />
+          <Route path="/teammates/:id" element={<ProtectedRoute><TeammatesDetailPage /></ProtectedRoute>} />
+
+          <Route path="/portfolio/me" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
+          <Route path="/portfolio/edit" element={<ProtectedRoute><EditPortfolioPage /></ProtectedRoute>} />
+          <Route path="/portfolio/:rollNumber" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
 
           {/* ── Default redirect ── */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -57,8 +57,8 @@ router.use('/messages', messagesRoutes);
 const opportunitiesRoutes = require('../modules/opportunities/opportunities.routes');
 router.use('/opportunities', opportunitiesRoutes);
 
-const matchingRoutes = require('../modules/matching/matching.routes');
-router.use('/matching', matchingRoutes);
+const teammatesRoutes = require('../modules/teammates/teammates.routes');
+router.use('/teammates', teammatesRoutes);
 
 const marketplaceRoutes = require('../modules/marketplace/marketplace.routes');
 router.use('/marketplace', marketplaceRoutes);
@@ -74,5 +74,8 @@ router.use('/notifications', notificationsRoutes);
 
 const adminRoutes = require('../modules/admin/admin.routes');
 router.use('/admin', adminRoutes);
+
+const portfolioRoutes = require('../modules/portfolio/portfolio.routes');
+router.use('/portfolio', portfolioRoutes);
 
 module.exports = router;
