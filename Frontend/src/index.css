@@ -60,4 +60,13 @@
   .chip-remove {
     @apply ml-1 text-primary-400 hover:text-red-400 cursor-pointer transition-colors;
   }
+
+  /* Custom Utilities */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

@@ -46,6 +46,9 @@ router.use('/resources', resourcesRoutes);
 const eventsRoutes = require('../modules/events/events.routes');
 router.use('/events', eventsRoutes);
 
+const feedRoutes = require('../modules/feed/feed.routes');
+router.use('/feed', feedRoutes);
+
 // ───── Scaffolded Modules (Phase 2) ─────
 
 const opportunitiesRoutes = require('../modules/opportunities/opportunities.routes');
