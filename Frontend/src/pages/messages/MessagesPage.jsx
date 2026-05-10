@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Send, User as UserIcon, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import api from '../../services/api';
+import api from '../../config/api';
 import { format } from 'date-fns';
 
 export default function MessagesPage() {

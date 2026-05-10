@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../../utils/api'; // Assuming api utility exists, else will fix
+import api from '../../config/api'; // Assuming api utility exists, else will fix
 
 export default function StudyGroupsPage() {
   const [groups, setGroups] = useState([]);
