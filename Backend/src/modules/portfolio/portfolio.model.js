@@ -65,6 +65,18 @@ const portfolioSchema = new mongoose.Schema(
       type: String,
       trim: true
     }],
+    techStack: [{
+      type: String,
+      trim: true
+    }],
+    tools: [{
+      type: String,
+      trim: true
+    }],
+    domains: [{
+      type: String,
+      trim: true
+    }],
     projects: [projectSchema],
     experience: [experienceSchema],
     achievements: [achievementSchema],

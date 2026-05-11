@@ -48,6 +48,9 @@ exports.updatePortfolio = async (userId, updateData) => {
   // Allow updating specific fields
   if (updateData.bio !== undefined) portfolio.bio = updateData.bio;
   if (updateData.skills !== undefined) portfolio.skills = updateData.skills;
+  if (updateData.techStack !== undefined) portfolio.techStack = updateData.techStack;
+  if (updateData.tools !== undefined) portfolio.tools = updateData.tools;
+  if (updateData.domains !== undefined) portfolio.domains = updateData.domains;
   if (updateData.profileImage !== undefined) portfolio.profileImage = updateData.profileImage;
   if (updateData.resumeUrl !== undefined) portfolio.resumeUrl = updateData.resumeUrl;
   if (updateData.cgpa !== undefined) portfolio.cgpa = updateData.cgpa;

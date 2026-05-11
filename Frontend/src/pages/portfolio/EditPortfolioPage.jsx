@@ -16,11 +16,14 @@ export default function EditPortfolioPage() {
   // Form states
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState('');
+  const [techStack, setTechStack] = useState('');
+  const [tools, setTools] = useState('');
+  const [domains, setDomains] = useState('');
   const [cgpa, setCgpa] = useState('');
   const [resumeUrl, setResumeUrl] = useState('');
   const [resumeUploading, setResumeUploading] = useState(false);
   const [links, setLinks] = useState({
-    github: '', linkedin: '', leetcode: '', codechef: '', hackerrank: '', website: '', twitter: ''
+    github: '', linkedin: '', leetcode: '', codechef: '', hackerrank: '', codeforces: '', geeksforgeeks: '', website: '', twitter: ''
   });
 
   const [projects, setProjects] = useState([]);
@@ -39,6 +42,9 @@ export default function EditPortfolioPage() {
       setPortfolio(data);
       setBio(data.bio || '');
       setSkills(data.skills?.join(', ') || '');
+      setTechStack(data.techStack?.join(', ') || '');
+      setTools(data.tools?.join(', ') || '');
+      setDomains(data.domains?.join(', ') || '');
       setCgpa(data.cgpa || '');
       setResumeUrl(data.resumeUrl || '');
       setLinks({
@@ -47,6 +53,8 @@ export default function EditPortfolioPage() {
         leetcode: data.socialLinks?.leetcode || '',
         codechef: data.socialLinks?.codechef || '',
         hackerrank: data.socialLinks?.hackerrank || '',
+        codeforces: data.socialLinks?.codeforces || '',
+        geeksforgeeks: data.socialLinks?.geeksforgeeks || '',
         website: data.socialLinks?.website || '',
         twitter: data.socialLinks?.twitter || '',
       });
@@ -73,6 +81,9 @@ export default function EditPortfolioPage() {
       await api.put('/portfolio/me', {
         bio,
         skills: skills.split(',').map(s => s.trim()).filter(Boolean),
+        techStack: techStack.split(',').map(s => s.trim()).filter(Boolean),
+        tools: tools.split(',').map(s => s.trim()).filter(Boolean),
+        domains: domains.split(',').map(s => s.trim()).filter(Boolean),
         cgpa: cgpa ? parseFloat(cgpa) : undefined,
         resumeUrl,
         socialLinks: links
@@ -221,14 +232,47 @@ export default function EditPortfolioPage() {
 
                 <div className="col-span-1 md:col-span-2">
                   <label className="block text-sm font-medium text-dark-300 mb-2 flex items-center gap-2">
-                    <Code2 size={16} /> Skills & Tech Stack (comma separated)
+                    <Code2 size={16} /> Skills (comma separated)
                   </label>
                   <input
                     type="text"
                     value={skills}
                     onChange={(e) => setSkills(e.target.value)}
                     className="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-dark-100 focus:border-primary-500/50 outline-none transition-all"
-                    placeholder="React, Node.js, Python, Figma"
+                    placeholder="e.g. Frontend Development, Data Structures"
+                  />
+                </div>
+
+                <div className="col-span-1">
+                  <label className="block text-sm font-medium text-dark-300 mb-2">Tech Stack (comma separated)</label>
+                  <input
+                    type="text"
+                    value={techStack}
+                    onChange={(e) => setTechStack(e.target.value)}
+                    className="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-dark-100 focus:border-primary-500/50 outline-none transition-all"
+                    placeholder="e.g. React, Node.js, Python"
+                  />
+                </div>
+
+                <div className="col-span-1">
+                  <label className="block text-sm font-medium text-dark-300 mb-2">Tools Known (comma separated)</label>
+                  <input
+                    type="text"
+                    value={tools}
+                    onChange={(e) => setTools(e.target.value)}
+                    className="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-dark-100 focus:border-primary-500/50 outline-none transition-all"
+                    placeholder="e.g. Git, Docker, Figma"
+                  />
+                </div>
+
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-medium text-dark-300 mb-2">Domains of Interest (comma separated)</label>
+                  <input
+                    type="text"
+                    value={domains}
+                    onChange={(e) => setDomains(e.target.value)}
+                    className="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-dark-100 focus:border-primary-500/50 outline-none transition-all"
+                    placeholder="e.g. Machine Learning, Web Development"
                   />
                 </div>
 
@@ -298,8 +342,16 @@ export default function EditPortfolioPage() {
                   <input type="url" value={links.codechef} onChange={e => setLinks({...links, codechef: e.target.value})} className="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-dark-100 focus:border-primary-500/50 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-dark-300 mb-2 flex items-center gap-2">HackerRank URL</label>
+                  <label className="block text-sm font-medium text-dark-300 mb-2">HackerRank URL</label>
                   <input type="url" value={links.hackerrank} onChange={e => setLinks({...links, hackerrank: e.target.value})} className="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-dark-100 focus:border-primary-500/50 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-300 mb-2">Codeforces URL</label>
+                  <input type="url" value={links.codeforces} onChange={e => setLinks({...links, codeforces: e.target.value})} className="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-dark-100 focus:border-primary-500/50 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-300 mb-2">GeeksForGeeks URL</label>
+                  <input type="url" value={links.geeksforgeeks} onChange={e => setLinks({...links, geeksforgeeks: e.target.value})} className="w-full bg-dark-950 border border-dark-800 rounded-xl px-4 py-3 text-dark-100 focus:border-primary-500/50 outline-none" />
                 </div>
               </div>
             </section>
