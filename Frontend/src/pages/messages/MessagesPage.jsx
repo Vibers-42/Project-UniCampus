@@ -247,10 +247,9 @@ export default function MessagesPage() {
                   <p className="text-center text-dark-400 py-4 text-sm">No students found matching "{searchQuery}"</p>
                 )}
               </div>
-            ) : (
-              // Conversations List
-              conversations.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-dark-400">
+            ) : conversations.length === 0 ? (
+              // Conversations List Empty State
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-dark-400">
                 <MessageSquare size={40} className="mb-4 opacity-20" />
                 <p className="text-sm">No conversations yet.</p>
                 <p className="text-xs mt-1">Search for a student using the top search bar to start chatting!</p>
