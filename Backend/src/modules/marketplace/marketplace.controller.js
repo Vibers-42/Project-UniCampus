@@ -40,3 +40,9 @@ exports.toggleSoldStatus = catchAsync(async (req, res) => {
   const item = await marketplaceService.markSold(req.params.id, req.user.id);
   sendSuccess(res, item, `Item marked as ${item.isSold ? 'Sold' : 'Available'}`);
 });
+
+exports.updateListing = catchAsync(async (req, res) => {
+  checkValidation(req);
+  const item = await marketplaceService.update(req.params.id, req.body, req.user.id);
+  sendSuccess(res, item, 'Listing updated successfully');
+});

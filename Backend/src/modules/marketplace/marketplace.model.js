@@ -22,14 +22,17 @@ const marketplaceItemSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please select a category'],
     enum: [
+      'Electronics',
       'Books',
-      'Calculators',
       'Lab Equipment',
-      'Hostel Items',
+      'Stationery',
+      'Hostel Essentials',
       'Gadgets',
       'Cycles',
+      'Furniture',
       'Study Materials',
       'Event Passes',
+      'Calculators',
       'Other'
     ],
     default: 'Other'
@@ -40,10 +43,29 @@ const marketplaceItemSchema = new mongoose.Schema({
     enum: ['New', 'Like New', 'Good', 'Fair', 'Poor'],
     default: 'Good'
   },
+  negotiable: {
+    type: Boolean,
+    default: false
+  },
+  department: {
+    type: String,
+    trim: true
+  },
+  location: {
+    type: String,
+    trim: true
+  },
   image: {
     type: String,
     required: [true, 'Please upload at least one image']
   },
+  attachments: [{
+    type: String
+  }],
+  tags: [{
+    type: String,
+    trim: true
+  }],
   sellerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -68,7 +90,13 @@ const marketplaceItemSchema = new mongoose.Schema({
 });
 
 // Indexes for search
-marketplaceItemSchema.index({ title: 'text', description: 'text' });
+marketplaceItemSchema.index({ 
+  title: 'text', 
+  description: 'text', 
+  tags: 'text', 
+  location: 'text', 
+  department: 'text' 
+});
 marketplaceItemSchema.index({ category: 1 });
 marketplaceItemSchema.index({ isSold: 1, isDeleted: 1 });
 

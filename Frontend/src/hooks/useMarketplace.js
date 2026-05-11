@@ -76,6 +76,20 @@ export function useMarketplace() {
     }
   };
 
+  const updateListing = async (id, data) => {
+    setLoading(true);
+    try {
+      const res = await api.put(`/marketplace/${id}`, data);
+      setItems(prev => prev.map(item => item._id === id ? res.data.data : item));
+      return res.data.data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update listing');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return { 
     items, 
     loading, 
@@ -85,6 +99,7 @@ export function useMarketplace() {
     getItem, 
     createListing, 
     deleteListing,
-    toggleSoldStatus
+    toggleSoldStatus,
+    updateListing
   };
 }

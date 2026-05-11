@@ -17,6 +17,14 @@ const getAll = async (filters = {}) => {
   if (filters.search) {
     query.$text = { $search: filters.search };
   }
+
+  if (filters.department && filters.department !== 'All') {
+    query.departments = filters.department;
+  }
+
+  if (filters.year && filters.year !== 'All') {
+    query.yearsEligible = filters.year;
+  }
   
   const { page, limit, skip } = parsePagination(filters);
   const [items, totalCount] = await Promise.all([

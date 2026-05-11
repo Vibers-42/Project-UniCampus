@@ -1,6 +1,9 @@
+import { useLocation } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
+import OpportunitiesSidebar from '../opportunities/OpportunitiesSidebar';
+import MarketplaceSidebar from '../marketplace/MarketplaceSidebar';
 
-export default function RightWidgets() {
+function HomeSidebar() {
   const upcomingEvents = [
     { id: 1, title: 'Hack the Future', date: 'Oct 24', venue: 'Main Auditorium' },
     { id: 2, title: 'React Workshop', date: 'Oct 26', venue: 'Lab 3' },
@@ -8,7 +11,7 @@ export default function RightWidgets() {
 
   return (
     <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:block overflow-y-auto">
-      <div className="p-6 h-full">
+      <div className="p-6 h-full mt-16">
         {/* Profile Completion Widget */}
         <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 mb-6">
           <h3 className="text-sm font-semibold text-dark-200 mb-3">Profile Status</h3>
@@ -49,4 +52,43 @@ export default function RightWidgets() {
       </div>
     </aside>
   );
+}
+
+function WIPSidebar({ moduleName }) {
+  return (
+    <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:block overflow-y-auto">
+      <div className="p-6 h-full flex flex-col items-center justify-center text-center opacity-60">
+        <div className="w-16 h-16 rounded-2xl bg-dark-900 border border-dark-800 flex items-center justify-center mb-4">
+          <svg className="w-8 h-8 text-dark-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        </div>
+        <h3 className="text-sm font-semibold text-dark-200 mb-1">{moduleName} Sidebar</h3>
+        <p className="text-xs text-dark-400">Work in Progress</p>
+      </div>
+    </aside>
+  );
+}
+
+export default function RightWidgets() {
+  const location = useLocation();
+  const path = location.pathname;
+
+  if (path.startsWith('/opportunities')) {
+    return <OpportunitiesSidebar />;
+  }
+  
+  if (path.startsWith('/marketplace')) {
+    return <MarketplaceSidebar />;
+  }
+  
+  if (path === '/' || path === '/home' || path.startsWith('/dashboard')) {
+    return <HomeSidebar />;
+  }
+
+  // Determine module name for WIP
+  const moduleName = path.split('/')[1] || 'Module';
+  const formattedName = moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
+
+  return <WIPSidebar moduleName={formattedName} />;
 }
