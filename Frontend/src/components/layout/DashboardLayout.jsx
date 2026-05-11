@@ -1,6 +1,7 @@
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import RightWidgets from './RightWidgets';
+import RateLimitBanner from './RateLimitBanner';
 
 /**
  * DashboardLayout — shared shell for all app pages.
@@ -19,6 +20,7 @@ export default function DashboardLayout({ children, hideWidgets = false, rightCo
 
   return (
     <div className="min-h-screen bg-dark-950 flex">
+      <RateLimitBanner />
       <Sidebar />
 
       {/* Main column — offset for sidebar (lg: 256px) and optional right panel (xl: 320px) */}
@@ -39,7 +41,7 @@ export default function DashboardLayout({ children, hideWidgets = false, rightCo
       {/* Right panel — fixed, 320px wide */}
       {showRight && (
         customRight ? (
-          <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:flex flex-col overflow-y-auto">
+          <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:flex flex-col overflow-y-auto z-30">
             <div className="px-5 pb-5 pt-0 flex flex-col gap-4 mt-5">
               {customRight}
             </div>

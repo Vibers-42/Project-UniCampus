@@ -28,17 +28,34 @@ const opportunitiesSchema = new mongoose.Schema(
     responsibilities: { type: String, default: '' },
     requirements: { type: String, default: '' },
     applicationProcess: { type: String, default: '' },
-    attachments: { type: [String], default: [] }, // Cloudinary URLs
+    attachments: [{
+      url:       { type: String, required: true },
+      publicId:  { type: String, default: '' },
+      fileType:  { type: String, default: '' },
+    }],
     deadline: { type: Date },
     applyLink: { type: String, default: '' },
     tags: { type: [String], default: [] },
     banner: { type: String, default: '' },
+    // ADDED: Cloudinary public_id for banner — needed for cleanup
+    bannerPublicId: { type: String, default: '' },
     postedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     campusId: { type: String, trim: true, default: 'main', index: true },
     
     alumniName: { type: String, default: '' },
     role: { type: String, default: '' },
-    referralStatus: { type: String, enum: ['Open', 'Closed'], default: 'Open' }
+    referralStatus: { type: String, enum: ['Open', 'Closed'], default: 'Open' },
+
+    // ADDED: Lifecycle status for opportunity tracking
+    status: {
+      type: String,
+      enum: {
+        values: ['active', 'expired', 'filled', 'draft'],
+        message: 'Status must be active, expired, filled, or draft',
+      },
+      default: 'active',
+      index: true,
+    },
   },
   { timestamps: true }
 );
@@ -50,5 +67,9 @@ opportunitiesSchema.index({
   facultyCoordinator: 'text',
   studentCoordinator: 'text'
 });
+
+// ADDED: Compound indexes for common filter patterns
+opportunitiesSchema.index({ type: 1, deadline: 1 });
+opportunitiesSchema.index({ postedBy: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Opportunity', opportunitiesSchema);

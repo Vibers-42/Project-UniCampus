@@ -12,6 +12,8 @@ const projectSchema = new mongoose.Schema({
   githubLink: { type: String, trim: true, default: '' },
   liveLink: { type: String, trim: true, default: '' },
   image: { type: String, default: '' }, // Cloudinary URL
+  // ADDED: Cloudinary public_id for project image
+  imagePublicId: { type: String, default: '' },
   status: { type: String, enum: ['ongoing', 'completed'], default: 'completed' },
 });
 
@@ -52,6 +54,11 @@ const portfolioSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    // ADDED: Cloudinary public_id for profile image
+    profileImagePublicId: {
+      type: String,
+      default: ''
+    },
     socialLinks: {
       linkedin: { type: String, trim: true, default: '' },
       github: { type: String, trim: true, default: '' },
@@ -86,6 +93,11 @@ const portfolioSchema = new mongoose.Schema(
       max: 10
     },
     resumeUrl: {
+      type: String,
+      default: ''
+    },
+    // ADDED: Cloudinary public_id for resume
+    resumePublicId: {
       type: String,
       default: ''
     }

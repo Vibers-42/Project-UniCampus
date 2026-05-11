@@ -27,7 +27,7 @@ import {
   signOut,
 } from 'firebase/auth';
 import { auth } from '../config/firebaseClient';
-import api from '../config/api';
+import api, { clearTokenCache } from '../config/api';
 
 const AuthContext = createContext(null);
 
@@ -69,6 +69,7 @@ export function AuthProvider({ children }) {
       console.error('[Auth] Backend sync failed:', error.response?.data?.message || error.message);
       // If sync fails, sign out to clean state
       await signOut(auth);
+      clearTokenCache();
       setUser(null);
       throw error;
     }
@@ -97,6 +98,7 @@ export function AuthProvider({ children }) {
     if (!freshUser || !freshUser.emailVerified) {
       console.debug('[Auth] Email not verified. Signing out.');
       await signOut(auth);
+      clearTokenCache();
       setUser(null);
       throw new Error('Email is not verified. Please check your inbox and verify your email first.');
     }
@@ -244,6 +246,7 @@ export function AuthProvider({ children }) {
    */
   const logout = async () => {
     await signOut(auth);
+    clearTokenCache();
     setUser(null);
     console.debug('[Auth] Logged out. State cleared.');
   };

@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Search, Shield, UserMinus, Crown, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-const MOCK_CURRENT_USER_ID = 'user_001';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AVATAR_COLORS = [
   '#6c63ff','#f59e0b','#10b981','#3b82f6','#ec4899',
@@ -54,12 +53,13 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function GroupMembersTab({ group, onGroupChange, useMockData }) {
+export default function GroupMembersTab({ group, onGroupChange }) {
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [hoveredId, setHoveredId] = useState(null);
   const [confirm, setConfirm] = useState(null); // { type: 'kick'|'admin', member }
 
-  const isAdmin = group?.admin?._id === MOCK_CURRENT_USER_ID;
+  const isAdmin = user && group?.admin?._id === user._id;
   const members = group?.members || [];
 
   const filtered = useMemo(() => {
@@ -158,7 +158,7 @@ export default function GroupMembersTab({ group, onGroupChange, useMockData }) {
 
         {filtered.map(member => {
           const isMemberAdmin = member._id === group.admin?._id;
-          const isMe = member._id === MOCK_CURRENT_USER_ID;
+          const isMe = user && member._id === user._id;
           const isHovered = hoveredId === member._id;
 
           return (
@@ -183,14 +183,7 @@ export default function GroupMembersTab({ group, onGroupChange, useMockData }) {
                 }}>
                   {initials(member.fullName)}
                 </div>
-                {/* Online dot (all online in mock) */}
-                {useMockData && (
-                  <div style={{
-                    position: 'absolute', bottom: '-1px', right: '-1px',
-                    width: '11px', height: '11px', borderRadius: '50%',
-                    background: '#00d4aa', border: '2px solid rgb(var(--color-dark-950))',
-                  }} />
-                )}
+
               </div>
 
               {/* Info */}

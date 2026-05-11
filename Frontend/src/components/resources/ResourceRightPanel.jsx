@@ -8,12 +8,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 import { getResources } from '../../api/resource.api';
 
-// Import mock data
-import { mockResources, mockTopContributors, mockActivity } from '../../mocks/resourcesMockData';
-
-/* ── MOCK DATA FLAG ── */
-const USE_MOCK_DATA = true;
-
 const QUICK_FILTERS = [
   { label: 'My Department', key: 'department', getValue: (user) => user?.department || '' },
   { label: 'My Semester', key: 'semester', getValue: (user) => user?.yearOfStudy ? String((user.yearOfStudy - 1) * 2 + 1) : '' },
@@ -76,104 +70,81 @@ export default function ResourceRightPanel({ onQuickFilter, activeFilters = {} }
   const [myStats, setMyStats] = useState({ uploads: 0, downloads: 0 });
 
   useEffect(() => {
-    if (USE_MOCK_DATA) {
-      // 1. Trending (top 3 by downloads)
-      const trendingMock = [...mockResources]
-        .sort((a, b) => (b.downloadCount || 0) - (a.downloadCount || 0))
-        .slice(0, 3);
-      setTrending(trendingMock);
+    // 1. Trending
+    const loadTrending = async () => {
+      try {
+        const res = await getResources({ sort: 'most-downloaded', limit: 3 });
+        setTrending(res.data?.data?.items || []);
+      } catch { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, trending: false })); }
+    };
 
-      // 2. Recent Uploads
-      const recentMock = [...mockResources]
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 3);
-      setRecent(recentMock);
+    // 2. Recent Uploads
+    const loadRecent = async () => {
+      try {
+        const res = await getResources({ sort: 'newest', limit: 3 });
+        setRecent(res.data?.data?.items || []);
+      } catch { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, recent: false })); }
+    };
 
-      // 3. Top Contributors
-      setTopContributors(mockTopContributors);
+    // 3. Top Contributors
+    const loadContributors = async () => {
+      try {
+        const res = await getResources({ sort: 'most-uploaded', limit: 5 });
+        const items = res.data?.data?.items || [];
+        const seen = new Set();
+        const contributors = [];
+        items.forEach(item => {
+          if (item.uploadedBy && !seen.has(item.uploadedBy._id)) {
+            seen.add(item.uploadedBy._id);
+            contributors.push({
+              ...item.uploadedBy,
+              uploadCount: items.filter(i => i.uploadedBy?._id === item.uploadedBy._id).length
+            });
+          }
+        });
+        setTopContributors(contributors.slice(0, 3));
+      } catch { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, contributors: false })); }
+    };
 
-      // 4. My Activity & Uploads (using user_001 Aryan Patel as current user)
-      setMyStats(mockActivity);
-      setMyUploads(mockResources.filter(r => r.uploadedBy?._id === 'user_001').slice(0, 2));
+    // 4. My Uploads & Stats
+    const loadMyActivity = async () => {
+      if (!user) {
+        setLoading(prev => ({ ...prev, myUploads: false }));
+        return;
+      }
+      try {
+        const res = await getResources({ uploadedBy: user._id, limit: 100, sort: 'newest' });
+        const items = res.data?.data?.items || [];
+        const totalDownloads = items.reduce((sum, r) => sum + (r.downloadCount || 0), 0);
+        setMyStats({ uploads: items.length, downloads: totalDownloads });
+        setMyUploads(items.slice(0, 2));
+      } catch { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, myUploads: false })); }
+    };
 
-      // 5. Category Counts
+    // 5. Category Counts - load total resources and compute counts
+    const loadCategoryCounts = async () => {
       const counts = {};
-      CATEGORIES.forEach(cat => {
-        counts[cat.id] = mockResources.filter(r => r.category === cat.id).length;
-      });
-      setCategoryCounts(counts);
+      try {
+        // Initialize all counts to 0
+        CATEGORIES.forEach(cat => { counts[cat.id] = 0; });
+        // Fetch a batch and compute category distribution
+        const res = await getResources({ limit: 100 });
+        const items = res.data?.data?.items || [];
+        items.forEach(item => {
+          if (item.category && counts[item.category] !== undefined) {
+            counts[item.category]++;
+          }
+        });
+        setCategoryCounts(counts);
+      } catch { /* silent */ }
+      finally { setLoading(prev => ({ ...prev, categories: false })); }
+    };
 
-      setLoading({ trending: false, recent: false, contributors: false, myUploads: false, categories: false });
-    } else {
-      // 1. Trending
-      const loadTrending = async () => {
-        try {
-          const res = await getResources({ sort: 'most-downloaded', limit: 3 });
-          setTrending(res.data?.data?.items || []);
-        } catch { /* silent */ }
-        finally { setLoading(prev => ({ ...prev, trending: false })); }
-      };
-
-      // 2. Recent Uploads
-      const loadRecent = async () => {
-        try {
-          const res = await getResources({ sort: 'newest', limit: 3 });
-          setRecent(res.data?.data?.items || []);
-        } catch { /* silent */ }
-        finally { setLoading(prev => ({ ...prev, recent: false })); }
-      };
-
-      // 3. Top Contributors
-      const loadContributors = async () => {
-        try {
-          const res = await getResources({ sort: 'most-uploaded', limit: 5 });
-          const items = res.data?.data?.items || [];
-          const seen = new Set();
-          const contributors = [];
-          items.forEach(item => {
-            if (item.uploadedBy && !seen.has(item.uploadedBy._id)) {
-              seen.add(item.uploadedBy._id);
-              contributors.push({
-                user: item.uploadedBy,
-                uploadCount: items.filter(i => i.uploadedBy?._id === item.uploadedBy._id).length + 2
-              });
-            }
-          });
-          setTopContributors(contributors.slice(0, 3));
-        } catch { /* silent */ }
-        finally { setLoading(prev => ({ ...prev, contributors: false })); }
-      };
-
-      // 4. My Uploads & Stats
-      const loadMyActivity = async () => {
-        if (!user) {
-          setLoading(prev => ({ ...prev, myUploads: false }));
-          return;
-        }
-        try {
-          const res = await getResources({ uploadedBy: user._id, limit: 100, sort: 'newest' });
-          const items = res.data?.data?.items || [];
-          const totalDownloads = items.reduce((sum, r) => sum + (r.downloadCount || 0), 0);
-          setMyStats({ uploads: items.length, downloads: totalDownloads });
-          setMyUploads(items.slice(0, 2));
-        } catch { /* silent */ }
-        finally { setLoading(prev => ({ ...prev, myUploads: false })); }
-      };
-
-      // 5. Category Counts
-      const loadCategoryCounts = async () => {
-        const counts = {};
-        try {
-          CATEGORIES.forEach(cat => {
-            counts[cat.id] = Math.floor(Math.random() * 20) + 5; 
-          });
-          setCategoryCounts(counts);
-        } catch { /* silent */ }
-        finally { setLoading(prev => ({ ...prev, categories: false })); }
-      };
-
-      loadTrending(); loadRecent(); loadContributors(); loadMyActivity(); loadCategoryCounts();
-    }
+    loadTrending(); loadRecent(); loadContributors(); loadMyActivity(); loadCategoryCounts();
   }, [user]);
 
   const isFilterActive = (key, value) => activeFilters[key] === value;
@@ -231,6 +202,8 @@ export default function ResourceRightPanel({ onQuickFilter, activeFilters = {} }
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           {QUICK_FILTERS.map(qf => {
             const value = qf.getValue(user);
+            if (!value) return null; // Do not show if no value is available
+            
             const active = isFilterActive(qf.key, value);
             return (
               <button

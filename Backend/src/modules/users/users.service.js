@@ -289,22 +289,28 @@ const updateProfile = async (email, updateData) => {
 };
 
 /**
- * Update a user's avatar URL.
+ * Update a user's avatar URL and optional publicId.
  *
  * ARCHITECTURE NOTE:
  *   This receives a Cloudinary URL string — NEVER a file buffer.
  *   The frontend uploads the image directly to Cloudinary and sends
- *   the resulting URL to this endpoint.
+ *   the resulting URL and publicId to this endpoint.
  *
  * @param {string} email — User's email
  * @param {string} cloudinaryUrl — The Cloudinary URL for the uploaded avatar
+ * @param {string} [publicId=''] — The Cloudinary public_id (for future cleanup)
  * @returns {Promise<Object>} Updated user document
  * @throws {AppError} 404 if user not found
  */
-const updateAvatar = async (email, cloudinaryUrl) => {
+const updateAvatar = async (email, cloudinaryUrl, publicId = '') => {
+  const updateFields = { avatar: cloudinaryUrl };
+  if (publicId) {
+    updateFields.avatarPublicId = publicId;
+  }
+
   const user = await User.findOneAndUpdate(
     { email },
-    { $set: { avatar: cloudinaryUrl } },
+    { $set: updateFields },
     { new: true, runValidators: true }
   );
 

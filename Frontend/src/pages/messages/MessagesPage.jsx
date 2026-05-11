@@ -52,13 +52,14 @@ export default function MessagesPage() {
     fetchConversations();
   }, []);
 
-  // Poll for messages when a conversation is active
+  // Fetch messages when conversation changes (compare by ID, not object reference)
   useEffect(() => {
-    if (activeConversation) {
+    if (activeConversation?._id) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchMessages(activeConversation._id);
     }
-  }, [activeConversation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversation?._id]);
 
   // Socket IO Setup
   useEffect(() => {

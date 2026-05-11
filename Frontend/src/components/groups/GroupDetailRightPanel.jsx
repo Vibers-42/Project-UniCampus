@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Users, BookOpen, Hash, Info, Copy, Pin, ExternalLink, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { USE_MOCK_DATA } from '../../mocks/groupsMockData';
-
-const MOCK_CURRENT_USER_ID = 'user_001';
+import { useAuth } from '../../contexts/AuthContext';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function initials(name = '') {
@@ -46,12 +44,13 @@ function Widget({ title, icon: Icon, children, action }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function GroupDetailRightPanel({ group, threads = [], onSwitchTab }) {
+  const { user } = useAuth();
   const [copiedCode, setCopiedCode] = useState(false);
 
   if (!group) return null;
 
-  const isAdmin = group.admin?._id === MOCK_CURRENT_USER_ID;
-  const onlineMembers = USE_MOCK_DATA ? group.members : [];
+  const isAdmin = user && group.admin?._id === user._id;
+  const members = group.members || [];
   const recentThreads = threads.slice(0, 3);
 
   // ── Copy join code ──
@@ -67,15 +66,15 @@ export default function GroupDetailRightPanel({ group, threads = [], onSwitchTab
 
       {/* WIDGET 1 — Online Members */}
       <Widget
-        title={`Online Members (${onlineMembers.length})`}
+        title={`Members (${members.length})`}
         icon={Users}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {onlineMembers.length === 0 ? (
+          {members.length === 0 ? (
             <p style={{ fontSize: '13px', color: 'rgb(var(--color-dark-500))', textAlign: 'center', padding: '8px 0' }}>
               No members online
             </p>
-          ) : onlineMembers.map(member => (
+          ) : members.map(member => (
             <div key={member._id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ position: 'relative', flexShrink: 0 }}>
                 <div style={{
@@ -95,10 +94,10 @@ export default function GroupDetailRightPanel({ group, threads = [], onSwitchTab
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{
                   fontSize: '13px', fontWeight: 600,
-                  color: member._id === MOCK_CURRENT_USER_ID ? '#6c63ff' : 'rgb(var(--color-dark-200))',
+                  color: user && member._id === user._id ? '#6c63ff' : 'rgb(var(--color-dark-200))',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                 }}>
-                  {member.fullName}{member._id === MOCK_CURRENT_USER_ID ? ' (You)' : ''}
+                  {member.fullName}{user && member._id === user._id ? ' (You)' : ''}
                 </p>
                 {member._id === group.admin?._id && (
                   <p style={{ fontSize: '10px', color: '#6c63ff', fontWeight: 600 }}>Admin</p>

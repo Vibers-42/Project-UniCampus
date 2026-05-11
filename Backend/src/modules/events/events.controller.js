@@ -38,5 +38,10 @@ const getSidebarData = catchAsync(async (req, res) => {
   sendSuccess(res, data, 'Sidebar data fetched');
 });
 
-module.exports = { create, getAll, getById, update, remove, getSidebarData };
+const rsvp = catchAsync(async (req, res) => {
+  const data = await svc.rsvp(req.params.id, req.user.id);
+  sendSuccess(res, data, data.registered ? 'Registered for event' : 'Registration cancelled');
+});
+
+module.exports = { create, getAll, getById, update, remove, rsvp, getSidebarData };
 

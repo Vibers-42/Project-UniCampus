@@ -59,8 +59,15 @@ const marketplaceItemSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please upload at least one image']
   },
+  // ADDED: Cloudinary public_id for main image — needed for cleanup on delete
+  imagePublicId: {
+    type: String,
+    default: ''
+  },
   attachments: [{
-    type: String
+    url:       { type: String, required: true },
+    publicId:  { type: String, default: '' },
+    fileType:  { type: String, default: '' },
   }],
   tags: [{
     type: String,
@@ -99,5 +106,7 @@ marketplaceItemSchema.index({
 });
 marketplaceItemSchema.index({ category: 1 });
 marketplaceItemSchema.index({ isSold: 1, isDeleted: 1 });
+// ADDED: Compound index for "My Posts" query pattern
+marketplaceItemSchema.index({ sellerId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('MarketplaceItem', marketplaceItemSchema);

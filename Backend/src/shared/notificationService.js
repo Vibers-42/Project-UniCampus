@@ -96,24 +96,52 @@ const sendEmailNotification = async (to, subject, html) => {
 /**
  * Send an in-app notification.
  *
- * Currently logs the notification. When the notifications module is built
- * (Part 5+), this function will save to the Notification collection.
+ * Persists the notification to the Notification collection and emits
+ * via Socket.IO if available.
  *
- * @param {string} userId   — The user to notify
- * @param {string} type     — Notification type (e.g., 'event_reminder', 'new_match')
- * @param {string} message  — Human-readable notification message
- * @param {Object} [metadata={}] — Additional context (e.g., { eventId, listingId })
- * @returns {Promise<Object>} The notification object
+ * @param {string} recipientId — The user's MongoDB _id to notify
+ * @param {string} type     — Notification type (e.g., 'event_reminder', 'teammate_apply')
+ * @param {string} title    — Short notification title
+ * @param {string} body     — Notification body text
+ * @param {Object} [relatedEntity] — { entityType, entityId } for deep-linking
+ * @param {Object} [metadata={}] — Additional context
+ * @returns {Promise<Object>} The created notification document
  */
-const sendInAppNotification = async (userId, type, message, metadata = {}) => {
-  // TODO: When notifications module is fully implemented, replace with:
-  //   const notificationsService = require('../modules/notifications/notifications.service');
-  //   return notificationsService.create({ userId, type, message, metadata });
-  // IMPORTANT: Call the module's SERVICE (public interface), never import the model directly.
+const sendInAppNotification = async (recipientId, type, title, body = '', relatedEntity = null, metadata = {}) => {
+  try {
+    // Lazy-require to avoid circular dependency at module load time
+    const notificationsService = require('../modules/notifications/notifications.service');
 
-  const notification = { userId, type, message, metadata, isRead: false, createdAt: new Date() };
-  logger.debug(`In-app notification: [${type}] for user ${userId} — "${message}"`);
-  return notification;
+    const data = {
+      recipient: recipientId,
+      type,
+      title,
+      body,
+      metadata,
+    };
+
+    if (relatedEntity) {
+      data.relatedEntity = relatedEntity;
+    }
+
+    const notification = await notificationsService.create(data);
+    logger.debug(`In-app notification: [${type}] for user ${recipientId} — "${title}"`);
+
+    // Emit via Socket.IO if available
+    try {
+      const { getIO } = require('../config/socket');
+      const io = getIO();
+      io.to(`user:${recipientId}`).emit('notification', notification);
+    } catch {
+      // Socket not initialized — skip real-time delivery, DB record is enough
+    }
+
+    return notification;
+  } catch (error) {
+    // Never let notification failures crash the calling operation
+    logger.error(`Failed to send in-app notification: ${error.message}`);
+    return null;
+  }
 };
 
 module.exports = {

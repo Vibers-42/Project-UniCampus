@@ -5,55 +5,50 @@
  *   Provides configurable rate limiters to prevent brute-force attacks
  *   and API abuse. Each limiter is a preset — routes just pick which one.
  *
+ * DEVELOPMENT vs PRODUCTION:
+ *   Development limits are relaxed to prevent blocking during active
+ *   development (React StrictMode double-mounts, hot-reloads, rapid
+ *   navigation testing). Production limits remain strict.
+ *
  * EXPORTS:
- *   generalLimiter — 100 requests per 15-minute window per IP.
- *                    Applied globally to all /api/ routes in app.js.
- *   authLimiter    — 20 requests per 15-minute window per IP.
- *                    Applied to auth routes (login, register).
- *                    Prevents brute-force credential attacks.
- *   profileLimiter — 30 requests per 15-minute window per IP.
- *                    Applied to profile update routes.
- *                    Prevents rapid profile update abuse.
- *
- * USAGE:
- *   // In app.js (global):
- *   const { generalLimiter } = require('./middleware/rateLimit.middleware');
- *   app.use('/api/', generalLimiter);
- *
- *   // In auth routes (per-route):
- *   const { authLimiter } = require('../middleware/rateLimit.middleware');
- *   router.use(authLimiter);
- *
- *   // In users routes (per-route):
- *   const { profileLimiter } = require('../middleware/rateLimit.middleware');
- *   router.patch('/profile', profileLimiter, validate, controller.updateProfile);
+ *   generalLimiter — Global API rate limit (applied in app.js)
+ *   authLimiter    — Auth route rate limit (login, register)
+ *   profileLimiter — Profile update rate limit
+ *   resendLimiter  — Email resend rate limit (very strict)
  */
 
 const rateLimit = require('express-rate-limit');
+const env = require('../config/env');
+
+const isDev = env.NODE_ENV === 'development';
 
 /**
- * General rate limiter — 100 requests per 15 minutes per IP.
- * Fair-use limit for all API endpoints.
+ * General rate limiter — applied globally to all API routes.
+ *
+ * Development: 500 requests per 15 minutes (handles StrictMode, hot-reload, polling)
+ * Production:  200 requests per 15 minutes (generous but safe)
  */
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: isDev ? 500 : 200,
   message: {
     success: false,
     message: 'Too many requests from this IP. Please try again after 15 minutes.',
     statusCode: 429,
   },
-  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
-  legacyHeaders: false,  // Disable deprecated `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip rate limiting for health checks
+  skip: (req) => req.path === '/health',
 });
 
 /**
- * Auth rate limiter — 20 requests per 15 minutes per IP.
- * Stricter limit for authentication endpoints to prevent brute-force.
+ * Auth rate limiter — 20 req/15min (strict — brute-force protection).
+ * Same in dev and prod — auth abuse is always dangerous.
  */
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 40 : 20,
   message: {
     success: false,
     message: 'Too many authentication attempts. Please try again after 15 minutes.',
@@ -64,12 +59,13 @@ const authLimiter = rateLimit({
 });
 
 /**
- * Profile rate limiter — 30 requests per 15 minutes per IP.
- * Prevents rapid profile update abuse (e.g., avatar spam, bio flooding).
+ * Profile rate limiter — prevents rapid profile update abuse.
+ * Development: 60 requests per 15 minutes
+ * Production:  30 requests per 15 minutes
  */
 const profileLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30,
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 60 : 30,
   message: {
     success: false,
     message: 'Too many profile update requests. Please try again after 15 minutes.',
@@ -80,11 +76,11 @@ const profileLimiter = rateLimit({
 });
 
 /**
- * Resend verification rate limiter — 3 requests per 15 minutes per IP.
- * Very strict to prevent email flooding abuse.
+ * Resend verification rate limiter — very strict to prevent email flooding.
+ * Same in dev and prod.
  */
 const resendLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 3,
   message: {
     success: false,

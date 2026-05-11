@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 
 // Route guards
@@ -64,6 +65,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <Toaster 
+          position="top-right" 
+          containerStyle={{ zIndex: 99999 }} 
+          toastOptions={{
+            style: {
+              background: 'rgb(var(--color-dark-900))',
+              color: 'rgb(var(--color-dark-100))',
+              border: '1px solid rgb(var(--color-dark-800))',
+            },
+          }}
+        />
         <Routes>
           {/* ── Public auth routes (redirect if already logged in) ── */}
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />

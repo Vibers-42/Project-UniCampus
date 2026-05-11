@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Sun, Moon, LogOut, Shield } from 'lucide-react';
@@ -36,7 +37,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout hideWidgets={true}>
       <div className="max-w-3xl mx-auto pb-12">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-dark-100">Settings</h2>
@@ -44,7 +45,27 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-6">
-          {/* General Settings */}
+          {/* Account & Profile */}
+          <div className="auth-card p-0 overflow-hidden">
+            <div className="p-6 border-b border-dark-800 bg-dark-900/30 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-dark-100">Account & Profile</h3>
+                  <p className="text-dark-400 text-sm mt-0.5">Manage your public information, skills, and portfolio</p>
+                </div>
+              </div>
+              <Link to="/settings/profile" className="px-5 py-2 bg-dark-800 hover:bg-dark-700 text-dark-200 rounded-xl font-medium transition-colors border border-dark-700">
+                Edit Profile
+              </Link>
+            </div>
+          </div>
+
+          {/* Appearance Settings */}
           <div className="auth-card p-0 overflow-hidden">
             <div className="p-6 flex justify-between items-center">
               <div className="flex items-center gap-4">
@@ -52,7 +73,7 @@ export default function SettingsPage() {
                   {theme === 'dark' ? <Moon size={24} /> : <Sun size={24} />}
                 </div>
                 <div>
-                  <h3 className="text-lg font-medium text-dark-100">Theme Preference</h3>
+                  <h3 className="text-lg font-medium text-dark-100">Appearance</h3>
                   <p className="text-dark-400 text-sm mt-0.5">Switch between dark and light mode for the application</p>
                 </div>
               </div>

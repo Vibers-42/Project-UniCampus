@@ -8,6 +8,8 @@ const router = Router();
 router.use(protect);
 
 router.get('/', ctrl.getAll);
+router.get('/unread-count', ctrl.getUnreadCount);
+router.patch('/read-all', ctrl.markAllRead);
 router.patch('/:id/read', validateId, validate, ctrl.markRead);
 router.delete('/:id', validateId, validate, ctrl.remove);
 

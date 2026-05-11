@@ -8,99 +8,18 @@ import { formatDistanceToNow } from 'date-fns';
 
 const CATEGORIES = ['all', 'hackathon', 'project', 'startup', 'competition', 'open source', 'research', 'freelance', 'college project', 'other'];
 
-// Realistic demo placeholders — shown ONLY when the DB returns zero real posts
-const DEMO_PROJECTS = [
-  {
-    _id: 'demo-1',
-    title: 'AI Study Assistant — Looking for Frontend Dev',
-    category: 'project',
-    shortDescription: 'Building an AI-powered study planner that adapts to student schedules. Need a React developer for the dashboard UI.',
-    currentTeamSize: 2,
-    requiredTeamSize: 4,
-    requiredRoles: ['Frontend', 'UI/UX'],
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    creatorId: { _id: 'demo-user-1', fullName: 'Aarav Sharma', rollNumber: '21P31A0501' },
-    status: 'open',
-    _isDemo: true
-  },
-  {
-    _id: 'demo-2',
-    title: 'Hackathon Squad — SIH 2026',
-    category: 'hackathon',
-    shortDescription: 'Recruiting backend and ML engineers for Smart India Hackathon. Problem statement: Rural Healthcare Access.',
-    currentTeamSize: 3,
-    requiredTeamSize: 6,
-    requiredRoles: ['Backend', 'Machine Learning', 'DevOps'],
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    creatorId: { _id: 'demo-user-2', fullName: 'Priya Reddy', rollNumber: '22P35A0412' },
-    status: 'open',
-    _isDemo: true
-  },
-  {
-    _id: 'demo-3',
-    title: 'Campus Marketplace — Startup Idea',
-    category: 'startup',
-    shortDescription: 'A buy/sell/rent marketplace exclusively for university students. Need mobile app devs and a designer.',
-    currentTeamSize: 1,
-    requiredTeamSize: 4,
-    requiredRoles: ['Flutter', 'React Native', 'UI Designer'],
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-    creatorId: { _id: 'demo-user-3', fullName: 'Vikram Patel', rollNumber: '23P31A0203' },
-    status: 'open',
-    _isDemo: true
-  },
-  {
-    _id: 'demo-4',
-    title: 'Open Source Contribution — UniCampus Modules',
-    category: 'open source',
-    shortDescription: 'Contribute to UniCampus platform development. All skill levels welcome. Great for building your GitHub profile.',
-    currentTeamSize: 4,
-    requiredTeamSize: 10,
-    requiredRoles: ['Frontend', 'Backend', 'Tester', 'Documentation'],
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-    creatorId: { _id: 'demo-user-4', fullName: 'Sneha Iyer', rollNumber: '21P31A0518' },
-    status: 'open',
-    _isDemo: true
-  },
-  {
-    _id: 'demo-5',
-    title: 'DBMS Mini Project — Team of 3 Needed',
-    category: 'college project',
-    shortDescription: 'Looking for 2 teammates to build a Library Management System for the 5th sem DBMS lab project.',
-    currentTeamSize: 1,
-    requiredTeamSize: 3,
-    requiredRoles: ['SQL', 'Backend'],
-    createdAt: new Date(Date.now() - 432000000).toISOString(),
-    creatorId: { _id: 'demo-user-5', fullName: 'Rahul Verma', rollNumber: '22P31A0507' },
-    status: 'open',
-    _isDemo: true
-  },
-  {
-    _id: 'demo-6',
-    title: 'Research Paper — NLP for Regional Languages',
-    category: 'research',
-    shortDescription: 'Working on a research paper on NLP techniques for Telugu and Hindi text classification. Need collaborators with Python/ML background.',
-    currentTeamSize: 2,
-    requiredTeamSize: 4,
-    requiredRoles: ['ML Engineer', 'Data Analyst'],
-    createdAt: new Date(Date.now() - 518400000).toISOString(),
-    creatorId: { _id: 'demo-user-6', fullName: 'Ananya Gupta', rollNumber: '21P31A0520' },
-    status: 'open',
-    _isDemo: true
-  }
-];
-
 export default function TeammatesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [viewMode, setViewMode] = useState('all'); // 'all' or 'mine'
-  const [usingDemo, setUsingDemo] = useState(false); // tracks whether we are showing placeholder data
 
   const scrollRef = useRef(null);
+  const searchTimerRef = useRef(null);
 
   const scrollLeft = () => {
     if (scrollRef.current) scrollRef.current.scrollBy({ left: -200, behavior: 'smooth' });
@@ -113,41 +32,19 @@ export default function TeammatesPage() {
   const fetchProjects = async () => {
     try {
       setIsLoading(true);
-      const url = `/teammates?status=open${categoryFilter !== 'all' ? `&category=${categoryFilter}` : ''}${searchQuery ? `&search=${searchQuery}` : ''}`;
+      const url = `/teammates?status=open${categoryFilter !== 'all' ? `&category=${categoryFilter}` : ''}${debouncedSearch ? `&search=${debouncedSearch}` : ''}`;
       const res = await api.get(url);
       
-      let fetchedProjects = res.data.data.projects;
+      let fetchedProjects = res.data.data.projects || [];
       
       if (viewMode === 'mine') {
         fetchedProjects = fetchedProjects.filter(p => p.creatorId?._id === user?._id);
       }
 
-      // If DB returned real posts → use them; otherwise show demo placeholders
-      if (fetchedProjects.length > 0 || viewMode === 'mine') {
-        setProjects(fetchedProjects);
-        setUsingDemo(false);
-      } else {
-        // Apply client-side category/search filtering on demo data
-        let demoFiltered = [...DEMO_PROJECTS];
-        if (categoryFilter !== 'all') {
-          demoFiltered = demoFiltered.filter(p => p.category === categoryFilter);
-        }
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          demoFiltered = demoFiltered.filter(p =>
-            p.title.toLowerCase().includes(q) ||
-            p.shortDescription.toLowerCase().includes(q) ||
-            p.category.toLowerCase().includes(q)
-          );
-        }
-        setProjects(demoFiltered);
-        setUsingDemo(true);
-      }
+      setProjects(fetchedProjects);
     } catch (error) {
       console.error('Failed to fetch projects', error);
-      // On network error, show demo data as fallback
-      setProjects(DEMO_PROJECTS);
-      setUsingDemo(true);
+      setProjects([]);
     } finally {
       setIsLoading(false);
     }
@@ -157,7 +54,15 @@ export default function TeammatesPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProjects();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryFilter, viewMode, searchQuery]);
+  }, [categoryFilter, viewMode, debouncedSearch]);
+
+  // Debounce search input — wait 400ms after user stops typing
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => setDebouncedSearch(val), 400);
+  };
 
   const handleDelete = async (e, projectId) => {
     e.preventDefault(); // Prevent navigating to detail page
@@ -225,7 +130,7 @@ export default function TeammatesPage() {
                 type="text"
                 placeholder="Search projects, roles, or skills..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 className="w-full bg-dark-950 border border-dark-800 rounded-xl py-3.5 pl-12 pr-4 text-dark-100 focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all outline-none"
               />
             </div>
@@ -256,17 +161,7 @@ export default function TeammatesPage() {
           </div>
         </div>
 
-        {/* Demo data banner */}
-        {usingDemo && (
-          <div className="bg-primary-500/5 border border-primary-500/20 rounded-2xl px-6 py-4 flex items-center gap-3">
-            <Target size={20} className="text-primary-400 shrink-0" />
-            <p className="text-sm text-dark-300">
-              <span className="font-bold text-primary-400">Showing demo projects.</span> Be the first to{' '}
-              <Link to="/teammates/create" className="text-primary-400 underline hover:text-primary-300">post a real requirement</Link>{' '}
-              and recruit teammates!
-            </p>
-          </div>
-        )}
+
 
         {/* Listings Grid */}
         {isLoading ? (
@@ -297,36 +192,25 @@ export default function TeammatesPage() {
               const spotsTotal = project.requiredTeamSize;
               const isFull = spotsFilled >= spotsTotal;
               const isCreator = user?._id === project.creatorId?._id;
-              const isDemo = project._isDemo;
 
               return (
                 <div
                   key={project._id}
-                  onClick={() => {
-                    if (isDemo) return; // Demo posts don't navigate
-                    navigate(`/teammates/${project._id}`);
-                  }}
-                  className={`bg-dark-900 border border-dark-800 hover:border-primary-500/30 rounded-2xl p-6 transition-all group flex flex-col relative overflow-hidden shadow-lg hover:shadow-primary-500/5 ${isDemo ? 'cursor-default' : 'cursor-pointer'}`}
+                  onClick={() => navigate(`/teammates/${project._id}`)}
+                  className="bg-dark-900 border border-dark-800 hover:border-primary-500/30 rounded-2xl p-6 transition-all group flex flex-col relative overflow-hidden shadow-lg hover:shadow-primary-500/5 cursor-pointer"
                 >
-                  {/* Demo badge */}
-                  {isDemo && (
-                    <div className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-widest text-dark-500 bg-dark-800 px-2 py-0.5 rounded-full border border-dark-700">
-                      Demo
-                    </div>
-                  )}
+
 
                   <div className="flex justify-between items-start mb-4">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 bg-dark-800 text-dark-300 rounded-full border border-dark-700">
                       {project.category}
                     </span>
-                    {!isDemo && (
-                      <span className="text-xs text-dark-500">
-                        {formatDistanceToNow(new Date(project.createdAt), { addSuffix: true })}
-                      </span>
-                    )}
+                    <span className="text-xs text-dark-500">
+                      {formatDistanceToNow(new Date(project.createdAt), { addSuffix: true })}
+                    </span>
                   </div>
 
-                  <h3 className={`text-lg font-bold text-dark-100 mb-2 transition-colors line-clamp-1 ${!isDemo ? 'group-hover:text-primary-400' : ''}`}>
+                  <h3 className="text-lg font-bold text-dark-100 mb-2 transition-colors line-clamp-1 group-hover:text-primary-400">
                     {project.title}
                   </h3>
                   <p className="text-sm text-dark-400 mb-6 line-clamp-2 flex-1">
@@ -379,7 +263,7 @@ export default function TeammatesPage() {
                       </div>
                     </div>
 
-                    {isCreator && !isDemo && (
+                    {isCreator && (
                       <div className="flex items-center gap-2">
                         <button
                           onClick={(e) => handleEdit(e, project._id)}

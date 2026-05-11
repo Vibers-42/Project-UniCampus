@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, Search, Menu, User as UserIcon, X } from 'lucide-react';
+import { Search, Menu, User as UserIcon, X } from 'lucide-react';
+import NotificationBell from '../notifications/NotificationBell';
 import { useNavigate } from 'react-router-dom';
 import api from '../../config/api';
 
@@ -128,10 +129,7 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-4 ml-auto">
-        <button type="button" className="relative p-2 text-dark-400 hover:text-dark-100 transition-colors rounded-full hover:bg-dark-800">
-          <Bell size={20} />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
+        <NotificationBell />
       </div>
     </header>
   );

@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import { CheckCircle2, Circle, Activity, FileText, Briefcase, FolderGit2, Award, User, Code2, GitBranch, Terminal } from 'lucide-react';
 import api from '../../config/api';
 
 export default function PortfolioSidebar() {
   const [portfolio, setPortfolio] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const location = useLocation();
 
   const fetchPortfolio = async () => {
     try {
@@ -21,7 +19,7 @@ export default function PortfolioSidebar() {
 
   useEffect(() => {
     fetchPortfolio();
-  }, [location.pathname]); // Re-fetch when navigation happens (e.g. back from edit)
+  }, []); // Only fetch once on mount — sidebar is a read-only progress display
 
   if (isLoading) {
     return (

@@ -6,7 +6,7 @@ import api from '../config/api';
 // However, the api.js instance uses /api/v1. 
 // We will use the existing api instance for consistency with token injection.
 
-const BASE = '/groups';
+const BASE = '/study-groups';
 
 export const getGroups = (params) => api.get(BASE, { params });
 export const createGroup = (data) => api.post(BASE, data);
@@ -32,7 +32,7 @@ export const getMessages = (id, params) => api.get(`${BASE}/${id}/messages`, { p
 export const sendMessage = (id, data) => {
   // Check if data is FormData (for attachments)
   const isFormData = data instanceof FormData;
-  return api.post(`${BASE}/${id}/messages`, data, {
+  return api.post(`${BASE}/${id}/message`, data, {
     headers: {
       'Content-Type': isFormData ? 'multipart/form-data' : 'application/json'
     }

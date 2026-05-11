@@ -10,13 +10,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { getGroupById, getMessages, sendMessage } from '../api/group.api';
 import toast from 'react-hot-toast';
 
-import { mockGroups, mockMessages, mockThreads, USE_MOCK_DATA } from '../mocks/groupsMockData';
 import GroupDetailRightPanel from '../components/groups/GroupDetailRightPanel';
 import GroupMembersTab from '../components/groups/GroupMembersTab';
 import GroupResourcesTab from '../components/groups/GroupResourcesTab';
 import AdminPanelModal from '../components/groups/AdminPanelModal';
-
-const MOCK_CURRENT_USER_ID = 'user_001';
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: Info },
@@ -142,19 +139,11 @@ export default function GroupDetailPage() {
     const load = async () => {
       setLoading(true);
       try {
-        if (USE_MOCK_DATA) {
-          const g = mockGroups.find(x => x._id === id);
-          if (!g) throw new Error('Not found');
-          setGroup({ ...g });
-          setMessages(mockMessages[id] || []);
-          setThreads(mockThreads[id] || []);
-        } else {
-          const res = await getGroupById(id);
-          setGroup(res.data?.data?.group);
-          setThreads(res.data?.data?.threads || []);
-          const msgRes = await getMessages(id);
-          setMessages(msgRes.data?.data || []);
-        }
+        const res = await getGroupById(id);
+        setGroup(res.data?.data?.group);
+        setThreads(res.data?.data?.threads || []);
+        const msgRes = await getMessages(id);
+        setMessages(msgRes.data?.data || []);
       } catch {
         toast.error('Failed to load group');
         navigate('/groups');
@@ -180,23 +169,20 @@ export default function GroupDetailPage() {
     );
   }
 
-  const isAdmin = group.admin?._id === MOCK_CURRENT_USER_ID;
+  const isAdmin = user && group.admin?._id === user._id;
 
   // ── Handlers ──
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!msgInput.trim()) return;
-    const newMsg = {
-      _id: Date.now().toString(),
-      sender: { _id: MOCK_CURRENT_USER_ID, fullName: 'Aryan Patel' },
-      body: msgInput, isDeleted: false, createdAt: new Date(),
-    };
-    if (USE_MOCK_DATA) {
-      setMessages(prev => [...prev, newMsg]);
+    try {
+      await sendMessage(id, { body: msgInput });
       setMsgInput('');
-    } else {
-      try { await sendMessage(id, { body: msgInput }); setMsgInput(''); }
-      catch { toast.error('Failed to send'); }
+      // Refetch messages
+      const msgRes = await getMessages(id);
+      setMessages(msgRes.data?.data || []);
+    } catch {
+      toast.error('Failed to send');
     }
   };
 
@@ -360,7 +346,7 @@ export default function GroupDetailPage() {
                 <div key={msg._id} ref={el => msgRefs.current[msg._id] = el} style={{ borderRadius: '8px', transition: 'background 0.4s' }}>
                   <ChatMessage
                     msg={msg}
-                    isMe={msg.sender?._id === MOCK_CURRENT_USER_ID}
+                    isMe={user && msg.sender?._id === user._id}
                     isAdmin={isAdmin}
                     onDelete={handleDeleteMessage}
                     onPin={handlePinMessage}
@@ -404,7 +390,7 @@ export default function GroupDetailPage() {
                 onClick={() => {
                   const title = prompt('Thread title:');
                   if (!title?.trim()) return;
-                  const newThread = { _id: `thr_${Date.now()}`, title: title.trim(), topic: '', isPinned: false, messageCount: 0, lastActivity: new Date(), createdBy: { _id: MOCK_CURRENT_USER_ID, fullName: 'Aryan Patel' } };
+                  const newThread = { _id: `thr_${Date.now()}`, title: title.trim(), topic: '', isPinned: false, messageCount: 0, lastActivity: new Date(), createdBy: { _id: user?._id, fullName: user?.fullName || 'You' } };
                   setThreads(prev => [newThread, ...prev]);
                   toast.success('Thread created!');
                 }}
@@ -448,7 +434,6 @@ export default function GroupDetailPage() {
           <GroupResourcesTab
             group={group}
             onGroupChange={setGroup}
-            useMockData={USE_MOCK_DATA}
           />
         )}
 
@@ -457,7 +442,6 @@ export default function GroupDetailPage() {
           <GroupMembersTab
             group={group}
             onGroupChange={setGroup}
-            useMockData={USE_MOCK_DATA}
           />
         )}
 

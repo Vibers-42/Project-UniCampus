@@ -126,6 +126,12 @@ const usersSchema = new mongoose.Schema(
       default: '',
     },
 
+    // ADDED: Cloudinary public_id for avatar — needed for deletion on change
+    avatarPublicId: {
+      type: String,
+      default: '',
+    },
+
     bio: {
       type: String,
       trim: true,
@@ -248,6 +254,9 @@ const usersSchema = new mongoose.Schema(
 
 // Full-text search across fullName, skills, and department
 usersSchema.index({ fullName: 'text', skills: 'text', department: 'text' });
+
+// ADDED: Compound index for filtered searches by department + year
+usersSchema.index({ department: 1, yearOfStudy: 1 });
 
 const User = mongoose.model('User', usersSchema);
 

@@ -52,7 +52,9 @@ exports.updatePortfolio = async (userId, updateData) => {
   if (updateData.tools !== undefined) portfolio.tools = updateData.tools;
   if (updateData.domains !== undefined) portfolio.domains = updateData.domains;
   if (updateData.profileImage !== undefined) portfolio.profileImage = updateData.profileImage;
+  if (updateData.profileImagePublicId !== undefined) portfolio.profileImagePublicId = updateData.profileImagePublicId;
   if (updateData.resumeUrl !== undefined) portfolio.resumeUrl = updateData.resumeUrl;
+  if (updateData.resumePublicId !== undefined) portfolio.resumePublicId = updateData.resumePublicId;
   if (updateData.cgpa !== undefined) portfolio.cgpa = updateData.cgpa;
   
   if (updateData.socialLinks) {

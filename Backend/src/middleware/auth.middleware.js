@@ -124,6 +124,7 @@ const protect = async (req, res, next) => {
     // should use id (MongoDB _id) and email for identity.
     req.user = {
       id: user._id,
+      _id: user._id,   // Some controllers use _id, others use id — both must exist
       email: user.email,
       role: user.role,
       firebaseUid: user.firebaseUid,

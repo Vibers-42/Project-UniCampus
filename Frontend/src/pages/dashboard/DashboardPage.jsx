@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFeed } from '../../hooks/useFeed';
-import CreatePost from '../../components/feed/CreatePost';
 import PostCard from '../../components/feed/PostCard';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { PlusCircle, UploadCloud, MessageSquare, ShoppingBag, CalendarPlus, Users } from 'lucide-react';
+import MultiTypePostModal from '../../components/feed/MultiTypePostModal';
+import DiscussionPostModal from '../../components/feed/DiscussionPostModal';
+import { PlusCircle, UploadCloud, MessageSquare, ShoppingBag, CalendarPlus, Users, BookOpen } from 'lucide-react';
 
 const FEED_TABS = [
   { id: 'For You', backendType: 'All' },
@@ -20,11 +21,21 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { posts, loading, fetchFeed, createPost, likePost } = useFeed();
   const [activeTab, setActiveTab] = useState(FEED_TABS[0]);
+  const [isMultiTypeModalOpen, setIsMultiTypeModalOpen] = useState(false);
+  const [isDiscussionModalOpen, setIsDiscussionModalOpen] = useState(false);
+
+  useEffect(() => {
+    // Listen for the custom event from MultiTypePostModal
+    const handleOpenDiscussion = () => setIsDiscussionModalOpen(true);
+    window.addEventListener('open-discussion-modal', handleOpenDiscussion);
+    return () => window.removeEventListener('open-discussion-modal', handleOpenDiscussion);
+  }, []);
 
   useEffect(() => {
     // For MVP, we map the contextual frontend tabs to the existing backend feed types
     fetchFeed(activeTab.backendType);
-  }, [activeTab, fetchFeed]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab.backendType, fetchFeed]);
 
   const quickActions = [
     { name: 'Find Team', icon: Users, path: '/teammates', color: 'text-blue-400', bg: 'bg-blue-500/10' },
@@ -64,10 +75,36 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Post Creation */}
+      {/* Post Creation Trigger */}
       <div className="mb-8">
-        <CreatePost onSubmit={createPost} />
+        <div 
+          onClick={() => setIsMultiTypeModalOpen(true)}
+          className="auth-card p-4 md:p-6 cursor-pointer hover:border-primary-500/30 transition-all border border-dark-800 bg-dark-900/60"
+        >
+          <div className="flex gap-4 items-center">
+            <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.fullName || 'User'}&background=random`} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-dark-800" />
+            <div className="flex-1 bg-dark-950 hover:bg-dark-900 border border-dark-800 rounded-2xl px-4 py-3 text-dark-500 text-sm transition-colors flex items-center justify-between">
+              What would you like to post today?
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-dark-800 rounded-lg text-dark-400 hover:text-primary-400 hover:bg-primary-500/10 transition-all"><BookOpen size={16} /></span>
+                <span className="p-1.5 bg-dark-800 rounded-lg text-dark-400 hover:text-primary-400 hover:bg-primary-500/10 transition-all"><Users size={16} /></span>
+                <span className="p-1.5 bg-dark-800 rounded-lg text-dark-400 hover:text-primary-400 hover:bg-primary-500/10 transition-all"><PlusCircle size={16} /></span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <MultiTypePostModal 
+        isOpen={isMultiTypeModalOpen} 
+        onClose={() => setIsMultiTypeModalOpen(false)} 
+      />
+      
+      <DiscussionPostModal 
+        isOpen={isDiscussionModalOpen} 
+        onClose={() => setIsDiscussionModalOpen(false)} 
+        onSubmit={createPost}
+      />
 
       {/* Feed Tabs */}
       <div className="flex overflow-x-auto gap-2 mb-6 pb-2 hide-scrollbar border-b border-dark-800/50">

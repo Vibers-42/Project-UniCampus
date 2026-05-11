@@ -72,9 +72,11 @@ const teamProjectSchema = new mongoose.Schema(
       type: Date,
       required: [true, 'Deadline is required']
     },
+    // MODIFIED: from [String] to structured objects for Cloudinary publicId tracking
     attachments: [{
-      type: String, // Cloudinary URLs
-      trim: true
+      url:       { type: String, required: true },
+      publicId:  { type: String, default: '' },
+      fileType:  { type: String, default: '' },
     }],
     githubLink: {
       type: String,

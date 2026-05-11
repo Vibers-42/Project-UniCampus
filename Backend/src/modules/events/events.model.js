@@ -82,6 +82,12 @@ const eventsSchema = new mongoose.Schema(
       default: '', // Cloudinary URL
     },
 
+    // ADDED: Cloudinary public_id for banner — needed for cleanup on change
+    bannerPublicId: {
+      type: String,
+      default: '',
+    },
+
     status: {
       type: String,
       enum: {
@@ -101,6 +107,51 @@ const eventsSchema = new mongoose.Schema(
       type: Boolean,
       default: false, // Admin-approved event
     },
+
+    // ADDED: Department targeting (empty array = open to all)
+    department: {
+      type: [String],
+      default: [],
+    },
+
+    // ADDED: Virtual event support
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+
+    meetLink: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+
+    registrationLink: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+
+    registrationDeadline: {
+      type: Date,
+    },
+
+    // ADDED: RSVP / Registration tracking
+    maxCapacity: {
+      type: Number,
+      default: null, // null = unlimited
+    },
+
+    registeredUsers: [{
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      registeredAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
   },
   {
     timestamps: true,

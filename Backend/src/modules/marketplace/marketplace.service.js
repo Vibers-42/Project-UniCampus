@@ -5,10 +5,15 @@ const AppError = require('../../shared/utils/AppError');
  * Get all marketplace items with filtering and search
  */
 const getAll = async (queryParams) => {
-  const { category, search, sellerId, page = 1, limit = 20 } = queryParams;
+  const { category, search, sellerId, includeSold, page = 1, limit = 20 } = queryParams;
   const skip = (page - 1) * limit;
 
   const query = { isDeleted: false };
+  
+  // By default, do not show sold items in the active feed
+  if (includeSold !== 'true') {
+    query.isSold = false;
+  }
 
   if (category) query.category = category;
   if (sellerId) query.sellerId = sellerId;
@@ -109,8 +114,8 @@ const update = async (id, data, userId) => {
   // Whitelist updatable fields
   const allowedFields = [
     'title', 'description', 'price', 'category', 'condition',
-    'negotiable', 'department', 'location', 'image', 'attachments',
-    'tags', 'contactInfo', 'isSold'
+    'negotiable', 'department', 'location', 'image', 'imagePublicId',
+    'attachments', 'tags', 'contactInfo', 'isSold'
   ];
 
   allowedFields.forEach(field => {

@@ -10,8 +10,7 @@ import UploadResourceModal from '../../components/resources/UploadResourceModal'
 import PDFPreviewModal from '../../components/resources/PDFPreviewModal';
 import ResourceRightPanel from '../../components/resources/ResourceRightPanel';
 
-// Import mock data and flag
-import { mockResources, USE_MOCK_DATA } from '../../mocks/resourcesMockData';
+
 
 /* ── Constants ── */
 const SORT_OPTIONS = [
@@ -79,6 +78,14 @@ export default function ResourcesPage() {
     setSearch(getP('search'));
     setSort(getP('sort', 'newest'));
     setActiveTab(getP('tab', 'all'));
+    
+    if (searchParams.get('upload') === 'true') {
+      setUploadOpen(true);
+      // Clean up the URL so it doesn't re-open on refresh
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('upload');
+      setSearchParams(newParams, { replace: true });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -98,79 +105,16 @@ export default function ResourcesPage() {
     if (pg === 1) setLoading(true); else setLoadingMore(true);
     
     try {
-      if (USE_MOCK_DATA) {
-        // Apply client-side filtering to mockResources
-        let filtered = [...mockResources];
-
-        // search
-        if (search) {
-          filtered = filtered.filter(r => r.title.toLowerCase().includes(search.toLowerCase()));
-        }
-        // department (Normal filters)
-        if (filters.department) {
-          filtered = filtered.filter(r => r.department === filters.department);
-        }
-        // year
-        if (filters.year) {
-          filtered = filtered.filter(r => String(r.year) === filters.year);
-        }
-        // semester
-        if (filters.semester) {
-          filtered = filtered.filter(r => String(r.semester) === filters.semester);
-        }
-        // subject
-        if (filters.subject) {
-          filtered = filtered.filter(r => r.subject.toLowerCase().includes(filters.subject.toLowerCase()));
-        }
-        // category
-        if (filters.category) {
-          filtered = filtered.filter(r => r.category === filters.category);
-        }
-        // tabs
-        if (activeTab === 'my-uploads') {
-          // Hardcode current mock user as user_001 (Aryan Patel) for testing
-          filtered = filtered.filter(r => r.uploadedBy?._id === 'user_001');
-        } else if (activeTab === 'bookmarked') {
-          filtered = filtered.filter(r => savedIds.includes(r._id));
-        }
-
-        // sort
-        if (sort === 'newest') {
-          filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        } else if (sort === 'most-downloaded') {
-          filtered.sort((a, b) => (b.downloadCount || 0) - (a.downloadCount || 0));
-        } else if (sort === 'top-rated') {
-          filtered.sort((a, b) => (b.qualityRating || 0) - (a.qualityRating || 0));
-        } else if (sort === 'exam-relevant') {
-          filtered = filtered.sort((a, b) => {
-            if (a.isExamPeriod && !b.isExamPeriod) return -1;
-            if (!a.isExamPeriod && b.isExamPeriod) return 1;
-            return 0;
-          });
-        }
-
-        // Simulating pagination
-        const limit = 12;
-        const total = filtered.length;
-        const pages = Math.ceil(total / limit);
-        const paginated = filtered.slice((pg - 1) * limit, pg * limit);
-
-        setResources(append ? prev => [...prev, ...paginated] : paginated);
-        setTotalPages(pages || 1);
-        setHasMore(pg < pages);
-        setPage(pg);
-      } else {
-        const params = { ...filters, search: search || undefined, sort, page: pg, limit: 12 };
-        if (activeTab === 'my-uploads' && user) params.uploadedBy = user._id;
-        const res = await getResources(params);
-        const data = res.data?.data;
-        let items = data?.items || [];
-        if (activeTab === 'bookmarked') items = items.filter(r => savedIds.includes(r._id));
-        setResources(append ? prev => [...prev, ...items] : items);
-        setTotalPages(data?.totalPages || 1);
-        setHasMore(pg < (data?.totalPages || 1));
-        setPage(pg);
-      }
+      const params = { ...filters, search: search || undefined, sort, page: pg, limit: 12 };
+      if (activeTab === 'my-uploads' && user) params.uploadedBy = user._id;
+      const res = await getResources(params);
+      const data = res.data?.data;
+      let items = data?.items || [];
+      if (activeTab === 'bookmarked') items = items.filter(r => savedIds.includes(r._id));
+      setResources(append ? prev => [...prev, ...items] : items);
+      setTotalPages(data?.totalPages || 1);
+      setHasMore(pg < (data?.totalPages || 1));
+      setPage(pg);
     } catch { /* silent */ }
     finally { setLoading(false); setLoadingMore(false); }
   }, [filters, search, sort, activeTab, user, savedIds]);
@@ -183,7 +127,8 @@ export default function ResourcesPage() {
   }, [filters, sort, activeTab, search]);
 
   const handleSearch = (val) => {
-    setSearch(val);
+    // We do NOT update the main `search` state immediately because it's in the fetch dependency array.
+    // Instead, we just update the URL via syncParams after a debounce, which will eventually update `search` via the searchParams effect.
     clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => {
       syncParams({ search: val });

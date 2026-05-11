@@ -1,9 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Download, Pin, Trash2, Eye, Search, X, Upload, FileText, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { mockResources } from '../../mocks/resourcesMockData';
-
-const MOCK_CURRENT_USER_ID = 'user_001';
+import { useAuth } from '../../contexts/AuthContext';
+import { getResources } from '../../api/resource.api';
 
 const CATEGORY_CHIPS = ['All', 'notes', 'pyq', 'lab-manual', 'assignment', 'reference'];
 
@@ -54,11 +53,20 @@ function ResourcePickerModal({ group, onAdd, onClose }) {
   const [form, setForm] = useState({ title: '', category: 'notes', subject: group.subject });
   const [addedIds, setAddedIds] = useState(new Set());
 
-  const existingResults = useMemo(() => {
-    const q = searchQ.toLowerCase();
-    return mockResources.filter(r =>
-      !q || r.title.toLowerCase().includes(q) || r.subject.toLowerCase().includes(q)
-    );
+  const [existingResults, setExistingResults] = useState([]);
+  const [loadingResults, setLoadingResults] = useState(false);
+
+  useEffect(() => {
+    const loadResources = async () => {
+      setLoadingResults(true);
+      try {
+        const res = await getResources({ search: searchQ || undefined, limit: 20 });
+        setExistingResults(res.data?.data?.items || []);
+      } catch { /* silent */ }
+      finally { setLoadingResults(false); }
+    };
+    const timer = setTimeout(loadResources, 300);
+    return () => clearTimeout(timer);
   }, [searchQ]);
 
   const handleAddExisting = (res) => {
@@ -78,7 +86,7 @@ function ResourcePickerModal({ group, onAdd, onClose }) {
       category: form.category,
       fileUrl: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/PDF1',
       fileType: 'pdf',
-      uploadedBy: { _id: MOCK_CURRENT_USER_ID, fullName: 'Aryan Patel' },
+      uploadedBy: { _id: 'upload', fullName: 'You' },
       upvotes: [],
       downloadCount: 0,
       qualityRating: 0,
@@ -223,17 +231,15 @@ function ResourcePickerModal({ group, onAdd, onClose }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function GroupResourcesTab({ group, onGroupChange, useMockData }) {
+export default function GroupResourcesTab({ group, onGroupChange }) {
+  const { user } = useAuth();
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [resources, setResources] = useState(() =>
-    // Pre-populate with resources matching the group's subject
-    mockResources.filter(r => r.subject.toLowerCase().includes((group?.subject || '').toLowerCase().split(' ')[0])).slice(0, 3)
-  );
+  const [resources, setResources] = useState(group?.resources || []);
   const [confirmRemove, setConfirmRemove] = useState(null);
   const [pinnedIds, setPinnedIds] = useState(new Set((group?.pinnedResources || []).map(r => r?._id || r)));
 
-  const isAdmin = group?.admin?._id === MOCK_CURRENT_USER_ID;
+  const isAdmin = user && group?.admin?._id === user._id;
 
   const filtered = useMemo(() => {
     if (categoryFilter === 'All') return resources;

@@ -70,9 +70,15 @@ function InlineSelect({ value, onChange, options, getLabel, minWidth = 'fit-cont
 /* ── Main component ── */
 export default function ResourceFilters({ filters, onChange, onSearch, searchValue }) {
   const [subjectInput, setSubjectInput] = useState(filters.subject || '');
+  const [localSearch, setLocalSearch] = useState(searchValue || '');
   const [subjectSuggestions, setSubjectSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const subjectRef = useRef(null);
+
+  // Sync local search when parent searchValue changes (e.g. cleared via URL or clear button)
+  useEffect(() => {
+    setLocalSearch(searchValue || '');
+  }, [searchValue]);
 
   const isSubjectSelected = !!subjectInput;
 
@@ -113,6 +119,7 @@ export default function ResourceFilters({ filters, onChange, onSearch, searchVal
 
   const handleClear = useCallback(() => {
     setSubjectInput('');
+    setLocalSearch('');
     onChange({ department: '', year: '', semester: '', subject: '', category: '' });
     if (onSearch) onSearch('');
   }, [onChange, onSearch]);
@@ -141,8 +148,11 @@ export default function ResourceFilters({ filters, onChange, onSearch, searchVal
         <input
           type="text"
           placeholder="Search resources, subjects, tags…"
-          value={searchValue}
-          onChange={e => onSearch && onSearch(e.target.value)}
+          value={localSearch}
+          onChange={e => {
+            setLocalSearch(e.target.value);
+            if (onSearch) onSearch(e.target.value);
+          }}
           style={{
             width: '100%', height: '46px', paddingLeft: '42px', paddingRight: '56px',
             borderRadius: '12px', fontSize: '14px',

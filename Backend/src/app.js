@@ -86,6 +86,27 @@ app.use(
 // Rate limiting — applied globally to all API routes
 app.use('/api/', generalLimiter);
 
+// Development helper: Log when rate limit is approached or hit
+if (env.NODE_ENV === 'development') {
+  const requestCounts = new Map();
+  const WINDOW_MS = 15 * 60 * 1000;
+
+  // Reset counts periodically
+  setInterval(() => requestCounts.clear(), WINDOW_MS);
+
+  app.use('/api/', (req, res, next) => {
+    const ip = req.ip;
+    const count = (requestCounts.get(ip) || 0) + 1;
+    requestCounts.set(ip, count);
+
+    // Warn at 80% of the limit (500 * 0.8 = 400)
+    if (count === 400) {
+      console.warn(`[RATE-LIMIT] ⚠️ IP ${ip} is at 80% of rate limit (${count}/500). Recent: ${req.method} ${req.path}`);
+    }
+    next();
+  });
+}
+
 // SECURITY SUGGESTIONS (add these packages when ready for production):
 //
 // helmet     — Sets security-related HTTP headers (XSS, clickjacking, etc.)

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useOpportunities } from '../../hooks/useOpportunities';
-import { MOCK_OPPORTUNITIES } from '../../data/mockOpportunities';
 import { Briefcase, MapPin, Calendar, Users, GraduationCap, Banknote, User, Phone, FileText } from 'lucide-react';
 
 export default function OpportunityDetailPage() {
@@ -14,13 +13,6 @@ export default function OpportunityDetailPage() {
   useEffect(() => {
     const fetchOpp = async () => {
       try {
-        if (id.startsWith('mock')) {
-          const mockItem = MOCK_OPPORTUNITIES.find(o => o._id === id);
-          if (mockItem) {
-            setOpportunity(mockItem);
-            return;
-          }
-        }
         const data = await getOpportunity(id);
         setOpportunity(data);
       } catch (error) {

@@ -99,7 +99,7 @@ export default function EditProfilePage() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout hideWidgets={true}>
       <div className="max-w-4xl mx-auto pb-12">
         <div className="flex items-center gap-4 mb-6">
           <Link to="/settings" className="p-2 hover:bg-dark-800 rounded-full text-dark-400 hover:text-dark-200 transition-colors">

@@ -1,8 +1,7 @@
 import { useState, useRef } from 'react';
 import { X, Settings, Users, AlertTriangle, Save, Loader2, RefreshCw, UserMinus, Crown, Copy, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-const MOCK_CURRENT_USER_ID = 'user_001';
+import { useAuth } from '../../contexts/AuthContext';
 const CATEGORIES = ['study', 'project', 'hackathon', 'research', 'general'];
 
 const AVATAR_COLORS = ['#6c63ff','#f59e0b','#10b981','#3b82f6','#ec4899','#8b5cf6','#14b8a6','#f97316'];
@@ -69,6 +68,7 @@ const inputStyle = {
 
 // ── Main Modal ────────────────────────────────────────────────────────────────
 export default function AdminPanelModal({ group, onClose, onGroupChange, onNavigateBack }) {
+  const { user } = useAuth();
   const [tab, setTab] = useState('edit');
   const [form, setForm] = useState({
     name: group.name,
@@ -246,7 +246,7 @@ export default function AdminPanelModal({ group, onClose, onGroupChange, onNavig
               </p>
               {(group.members || []).map(member => {
                 const isMemberAdmin = member._id === group.admin?._id;
-                const isMe = member._id === MOCK_CURRENT_USER_ID;
+                const isMe = user && member._id === user._id;
                 return (
                   <div
                     key={member._id}

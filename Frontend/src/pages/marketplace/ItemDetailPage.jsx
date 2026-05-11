@@ -20,7 +20,6 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useMarketplace } from '../../hooks/useMarketplace';
 import { useAuth } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
-import { MOCK_MARKETPLACE_ITEMS } from '../../data/mockMarketplace';
 import PostItemModal from './PostItemModal';
 
 export default function ItemDetailPage() {
@@ -35,13 +34,6 @@ export default function ItemDetailPage() {
   useEffect(() => {
     const fetchItem = async () => {
       try {
-        if (id.startsWith('mock_mkt')) {
-          const mockItem = MOCK_MARKETPLACE_ITEMS.find(o => o._id === id);
-          if (mockItem) {
-            setItem(mockItem);
-            return;
-          }
-        }
         const data = await getItem(id);
         setItem(data);
       } catch (err) {
@@ -56,11 +48,6 @@ export default function ItemDetailPage() {
     
     setIsDeleting(true);
     try {
-      if (id.startsWith('mock_mkt')) {
-        alert("Cannot delete mock listings. Please test with real data.");
-        setIsDeleting(false);
-        return;
-      }
       await deleteListing(id);
       navigate('/marketplace');
     } catch (err) {
@@ -72,10 +59,6 @@ export default function ItemDetailPage() {
 
   const handleToggleSold = async () => {
     try {
-      if (id.startsWith('mock_mkt')) {
-        setItem(prev => ({ ...prev, isSold: !prev.isSold }));
-        return;
-      }
       const updatedItem = await toggleSoldStatus(id);
       setItem(updatedItem);
     } catch (err) {
@@ -105,7 +88,7 @@ export default function ItemDetailPage() {
     );
   }
 
-  const isOwner = user?.id === item.sellerId?._id;
+  const isOwner = user?._id === item.sellerId?._id;
 
   return (
     <DashboardLayout>

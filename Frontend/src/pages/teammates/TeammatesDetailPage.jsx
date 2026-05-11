@@ -223,17 +223,18 @@ export default function TeammatesDetailPage() {
                       
                       {project.attachments && project.attachments.length > 0 && (
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
-                          {project.attachments.map((url, idx) => {
-                            const isPdf = url.endsWith('.pdf');
+                          {project.attachments.map((att, idx) => {
+                            const fileUrl = typeof att === 'string' ? att : att.url;
+                            const isPdf = fileUrl?.endsWith('.pdf') || att?.fileType === 'pdf';
                             return (
-                              <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="group block relative aspect-square rounded-xl overflow-hidden border border-dark-800 hover:border-primary-500/50 transition-all">
+                              <a key={idx} href={fileUrl} target="_blank" rel="noopener noreferrer" className="group block relative aspect-square rounded-xl overflow-hidden border border-dark-800 hover:border-primary-500/50 transition-all">
                                 {isPdf ? (
                                   <div className="w-full h-full bg-dark-950 flex flex-col items-center justify-center text-dark-400 group-hover:text-primary-400 transition-colors">
                                     <FileText size={32} className="mb-2" />
                                     <span className="text-xs font-bold uppercase tracking-wider">View PDF</span>
                                   </div>
                                 ) : (
-                                  <img src={url} alt={`Attachment ${idx}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                  <img src={fileUrl} alt={`Attachment ${idx}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                 )}
                               </a>
                             );
@@ -249,14 +250,14 @@ export default function TeammatesDetailPage() {
               {/* Right Column - Sidebar Info */}
               <div className="space-y-6">
                 
-                {/* Team Status Card */}
+                {/* Team Size Card */}
                 <div className="bg-dark-950 border border-dark-800 p-6 rounded-2xl">
-                  <h3 className="text-sm font-bold text-dark-400 uppercase tracking-wider mb-4">Team Status</h3>
+                  <h3 className="text-sm font-bold text-dark-400 uppercase tracking-wider mb-4">Team Size</h3>
                   <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-4xl font-extrabold text-dark-100">{spotsFilled}</span>
-                    <span className="text-xl text-dark-500">/ {spotsTotal}</span>
+                    <span className="text-4xl font-extrabold text-dark-100">{spotsTotal}</span>
+                    <span className="text-xl text-dark-500">total spots</span>
                   </div>
-                  <p className="text-sm text-dark-400 mb-4">members currently in team</p>
+                  <p className="text-sm text-dark-400 mb-4">{spotsFilled} already on the team</p>
                   
                   <div className="w-full bg-dark-800 h-3 rounded-full overflow-hidden">
                     <div 
@@ -265,7 +266,7 @@ export default function TeammatesDetailPage() {
                     ></div>
                   </div>
                   <p className="text-xs text-center text-dark-500 mt-3 font-medium">
-                    {spotsTotal - spotsFilled > 0 ? `Need ${spotsTotal - spotsFilled} more teammate${spotsTotal - spotsFilled > 1 ? 's' : ''}` : 'Team is full!'}
+                    {spotsTotal - spotsFilled > 0 ? `Looking for ${spotsTotal - spotsFilled} more teammate${spotsTotal - spotsFilled > 1 ? 's' : ''}` : 'Team is full'}
                   </p>
                 </div>
 

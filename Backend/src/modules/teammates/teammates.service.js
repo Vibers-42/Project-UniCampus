@@ -152,8 +152,9 @@ exports.deleteProject = async (projectId, userId) => {
 
   // Delete associated attachments from Cloudinary
   if (project.attachments && project.attachments.length > 0) {
-    for (const url of project.attachments) {
-      const publicId = uploadService.extractPublicId(url);
+    for (const attachment of project.attachments) {
+      // Use structured publicId if available, fall back to URL extraction
+      const publicId = attachment.publicId || uploadService.extractPublicId(attachment.url || attachment);
       if (publicId) {
         await uploadService.deleteFile(publicId).catch(err => {
           // Log but don't fail deletion if cloudinary fails

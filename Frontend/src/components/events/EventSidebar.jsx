@@ -78,9 +78,7 @@ export default function EventSidebar() {
   ];
 
   return (
-    <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800/80 hidden xl:flex flex-col overflow-hidden">
-      {/* Scrollable content area — padded to sit below the fixed top navbar */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden pt-[68px] pb-6 px-5 space-y-5 scrollbar-thin scrollbar-thumb-dark-700 scrollbar-track-transparent">
+    <div className="space-y-5">
 
         {/* ═══════════════════════════════════════
             1. YOUR EVENT STATS
@@ -291,7 +289,6 @@ export default function EventSidebar() {
           )}
         </div>
 
-      </div>
-    </aside>
+    </div>
   );
 }

@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Upload, Calendar, MapPin, Tag } from 'lucide-react';
+import { ArrowLeft, Upload, Calendar, MapPin, Tag, Loader2 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import api from '../../config/api';
+import toast from 'react-hot-toast';
 
 export default function CreateEventPage() {
   const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -22,11 +25,28 @@ export default function CreateEventPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Dummy submit
-    console.log('Form data:', formData);
-    navigate('/events');
+    setSubmitting(true);
+    try {
+      const payload = {
+        ...formData,
+        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        maxCapacity: formData.maxParticipants > 0 ? Number(formData.maxParticipants) : null,
+      };
+      // Remove the frontend-only field
+      delete payload.maxParticipants;
+
+      await api.post('/events', payload);
+      toast.success('Event published successfully!');
+      navigate('/events');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to create event';
+      toast.error(msg);
+      console.error('[CreateEvent]', err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -186,7 +206,10 @@ export default function CreateEventPage() {
 
           <div className="pt-6 border-t border-dark-800 flex justify-end gap-4">
             <Link to="/events" className="btn-secondary w-auto">Cancel</Link>
-            <button type="submit" className="btn-primary w-auto">Publish Event</button>
+            <button type="submit" disabled={submitting} className="btn-primary w-auto flex items-center gap-2">
+              {submitting && <Loader2 size={16} className="animate-spin" />}
+              {submitting ? 'Publishing...' : 'Publish Event'}
+            </button>
           </div>
         </form>
       </div>

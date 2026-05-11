@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useMarketplace } from '../../hooks/useMarketplace';
 import MarketplaceCard from '../../components/marketplace/MarketplaceCard';
 import PostItemModal from './PostItemModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { Search, Filter, Plus, Package, ChevronLeft, ChevronRight, User } from 'lucide-react';
-import { MOCK_MARKETPLACE_ITEMS } from '../../data/mockMarketplace';
 
 const CATEGORIES = [
   'All', 'Electronics', 'Books', 'Lab Equipment', 'Stationery', 
@@ -29,9 +29,21 @@ export default function MarketplacePage() {
     fetchItems({ 
       category: activeCategory === 'All' ? '' : activeCategory, 
       search: searchQuery,
-      sellerId: showMyPosts ? user?.id : undefined
+      sellerId: showMyPosts ? user?._id : undefined,
+      includeSold: showMyPosts ? 'true' : undefined
     });
   };
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('post') === 'true') {
+      setIsModalOpen(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('post');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -39,7 +51,7 @@ export default function MarketplacePage() {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [activeCategory, searchQuery, showMyPosts, fetchItems, user?.id]);
+  }, [activeCategory, searchQuery, showMyPosts, fetchItems, user?._id]);
 
   const scrollCategories = (direction) => {
     if (scrollContainerRef.current) {
@@ -51,24 +63,7 @@ export default function MarketplacePage() {
     }
   };
 
-  const getFilteredMockItems = () => {
-    return MOCK_MARKETPLACE_ITEMS.filter(item => {
-      if (activeCategory !== 'All' && item.category !== activeCategory) return false;
-      if (showMyPosts && item.sellerId._id !== user?.id) return false;
-      
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesTitle = item.title.toLowerCase().includes(query);
-        const matchesDesc = item.description.toLowerCase().includes(query);
-        const matchesTags = item.tags?.some(tag => tag.toLowerCase().includes(query));
-        if (!matchesTitle && !matchesDesc && !matchesTags) return false;
-      }
-      return true;
-    });
-  };
-
-  const filteredMocks = getFilteredMockItems();
-  const displayItems = items.length > 0 ? items : filteredMocks;
+  const displayItems = items;
 
   const handleOpenCreate = () => {
     setEditItem(null);
@@ -195,20 +190,12 @@ export default function MarketplacePage() {
         </div>
       ) : displayItems.length > 0 ? (
         <div className={`transition-opacity duration-300 ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-          {items.length === 0 && (
-            <div className="mb-6 p-4 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 text-sm flex items-start gap-3">
-              <Filter className="w-5 h-5 mt-0.5 flex-shrink-0" />
-              <p>
-                <strong>Demo Mode Active:</strong> We couldn't find live listings matching your criteria in the database. Showing fully-fleshed placeholder examples for demonstration purposes. Once real data is populated, these placeholders will automatically disappear.
-              </p>
-            </div>
-          )}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {displayItems.map(item => (
               <MarketplaceCard 
                 key={item._id} 
                 item={item} 
-                isOwner={user?.id === item.sellerId?._id}
+                isOwner={user?._id === item.sellerId?._id}
                 onEdit={() => handleOpenEdit(item)}
               />
             ))}

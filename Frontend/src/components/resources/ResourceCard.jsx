@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { voteResource, downloadResource, deleteResource } from '../../api/resource.api';
-import { USE_MOCK_DATA } from '../../mocks/resourcesMockData';
 
 /* ── Constants ────────────────────────────────────────────────────────────── */
 const FILE_STYLE = {
@@ -140,11 +139,6 @@ export default function ResourceCard({
       };
     });
 
-    if (USE_MOCK_DATA) {
-      showToast(isVoted ? 'Vote removed' : 'Voted!');
-      return;
-    }
-
     try { await voteResource(resource._id); }
     catch { setResource(initialResource); }
   }, [resource._id, user, initialResource, isVoted]);
@@ -152,16 +146,6 @@ export default function ResourceCard({
   const handleDownload = useCallback(async (e) => {
     e.stopPropagation();
     setDownloading(true);
-
-    if (USE_MOCK_DATA) {
-      setTimeout(() => {
-        window.open(resource.fileUrl, '_blank', 'noopener,noreferrer');
-        setResource(prev => ({ ...prev, downloadCount: (prev.downloadCount || 0) + 1 }));
-        setDownloading(false);
-        showToast('Download started (Mock)');
-      }, 500);
-      return;
-    }
 
     try {
       const res = await downloadResource(resource._id);
@@ -172,7 +156,7 @@ export default function ResourceCard({
       }
     } catch { showToast('Download failed', 'error'); }
     finally { setDownloading(false); }
-  }, [resource._id, resource.fileUrl]);
+  }, [resource._id]);
 
   const handleSave = useCallback((e) => {
     e.stopPropagation();
@@ -192,14 +176,6 @@ export default function ResourceCard({
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
-    if (USE_MOCK_DATA) {
-      setTimeout(() => {
-        showToast('Deleted (Mock)');
-        if (onDeleted) onDeleted(resource._id);
-        setDeleting(false);
-      }, 500);
-      return;
-    }
     try {
       await deleteResource(resource._id);
       showToast('Deleted');

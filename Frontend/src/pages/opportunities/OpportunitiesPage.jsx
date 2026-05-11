@@ -3,9 +3,9 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useOpportunities } from '../../hooks/useOpportunities';
 import OpportunityCard from '../../components/opportunities/OpportunityCard';
 import { useAuth } from '../../contexts/AuthContext';
-import { ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
-import { MOCK_OPPORTUNITIES } from '../../data/mockOpportunities';
+
 
 const CATEGORIES = [
   'All', 'Internship', 'Placement Drive', 'Club Recruitment', 
@@ -53,34 +53,7 @@ export default function OpportunitiesPage() {
     }
   };
 
-  const getFilteredMockOpportunities = () => {
-    return MOCK_OPPORTUNITIES.filter(opp => {
-      if (activeCategory !== 'All' && opp.type !== activeCategory) return false;
-      
-      if (activeDepartment !== 'All' && !opp.departments?.includes('All') && !opp.departments?.includes(activeDepartment)) {
-        return false;
-      }
-      
-      if (activeYear !== 'All' && !opp.yearsEligible?.includes('All') && !opp.yearsEligible?.includes(activeYear)) {
-        // If yearsEligible is missing, assume it's open to all to avoid over-filtering, or just filter it out. 
-        // Let's filter it out if it explicitly doesn't match and isn't empty/undefined.
-        if (opp.yearsEligible && opp.yearsEligible.length > 0) return false;
-      }
-      
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesTitle = opp.title.toLowerCase().includes(query);
-        const matchesOrg = opp.organization.toLowerCase().includes(query);
-        const matchesTags = opp.tags?.some(tag => tag.toLowerCase().includes(query));
-        if (!matchesTitle && !matchesOrg && !matchesTags) return false;
-      }
-      
-      return true;
-    });
-  };
-
-  const filteredMocks = getFilteredMockOpportunities();
-  const displayOpportunities = opportunities.length > 0 ? opportunities : filteredMocks;
+  const displayOpportunities = opportunities;
 
   return (
     <DashboardLayout>
@@ -195,14 +168,6 @@ export default function OpportunitiesPage() {
         </div>
       ) : displayOpportunities.length > 0 ? (
         <div className={`transition-opacity duration-300 ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-          {opportunities.length === 0 && (
-            <div className="mb-6 p-4 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 text-sm flex items-start gap-3">
-              <Filter className="w-5 h-5 mt-0.5 flex-shrink-0" />
-              <p>
-                <strong>Demo Mode Active:</strong> We couldn't find live opportunities matching your criteria in the database. Showing fully-fleshed placeholder examples for demonstration purposes. Once real data is populated, these placeholders will automatically disappear.
-              </p>
-            </div>
-          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {displayOpportunities.map(opp => (
               <OpportunityCard key={opp._id} opportunity={opp} />

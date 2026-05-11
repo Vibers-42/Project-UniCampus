@@ -23,6 +23,7 @@ router.post('/', restrictTo(...creatorRoles), validateCreate, validate, ctrl.cre
 router.get('/', validateQuery, validate, ctrl.getAll);
 router.get('/:id', validateId, validate, ctrl.getById);
 router.patch('/:id', restrictTo(...creatorRoles), validateUpdate, validate, ctrl.update);
+router.post('/:id/rsvp', validateId, validate, ctrl.rsvp);
 router.delete('/:id', restrictTo(...creatorRoles), validateId, validate, ctrl.remove);
 
 module.exports = router;

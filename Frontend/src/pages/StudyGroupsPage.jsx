@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, Search, Loader2, Users, Compass, Star, TrendingUp, BookOpen } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import GroupCard from '../components/groups/GroupCard';
@@ -9,8 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getGroups, joinGroup, leaveGroup } from '../api/group.api';
 import toast from 'react-hot-toast';
 
-// Import mock data and flag
-import { mockGroups, USE_MOCK_DATA } from '../mocks/groupsMockData';
+
 
 const CATEGORIES = ['all', 'study', 'project', 'hackathon', 'research', 'general'];
 const TABS = [
@@ -28,6 +27,8 @@ export default function StudyGroupsPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [activeCategory, setActiveCategory] = useState('all');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchTimerRef = useRef(null);
   
   /* ── Modals ── */
   const [createOpen, setCreateOpen] = useState(false);
@@ -37,49 +38,30 @@ export default function StudyGroupsPage() {
   const fetchGroups = useCallback(async () => {
     setLoading(true);
     try {
-      if (USE_MOCK_DATA) {
-        let filtered = [...mockGroups];
-
-        // Search
-        if (search) {
-          filtered = filtered.filter(g => 
-            g.name.toLowerCase().includes(search.toLowerCase()) ||
-            g.subject.toLowerCase().includes(search.toLowerCase()) ||
-            g.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
-          );
-        }
-
-        // Category
-        if (activeCategory !== 'all') {
-          filtered = filtered.filter(g => g.category === activeCategory);
-        }
-
-        // Tabs
-        if (activeTab === 'my-groups') {
-          filtered = filtered.filter(g => g.admin?._id === 'user_001'); // Aryan Patel (Mock user)
-        } else if (activeTab === 'joined') {
-          filtered = filtered.filter(g => g.members.some(m => m._id === 'user_001'));
-        }
-
-        setGroups(filtered);
-      } else {
-        const res = await getGroups({
-          search,
-          category: activeCategory,
-          tab: activeTab
-        });
-        setGroups(res.data?.data?.items || []);
-      }
+      const res = await getGroups({
+        search: debouncedSearch,
+        category: activeCategory,
+        tab: activeTab
+      });
+      setGroups(res.data?.data?.items || []);
     } catch (err) {
       toast.error('Failed to load groups');
     } finally {
       setLoading(false);
     }
-  }, [search, activeCategory, activeTab]);
+  }, [debouncedSearch, activeCategory, activeTab]);
 
   useEffect(() => {
     fetchGroups();
   }, [fetchGroups]);
+
+  // Debounce search input — wait 400ms after user stops typing
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearch(val);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => setDebouncedSearch(val), 400);
+  };
 
   /* ── Handlers ── */
   const handleJoinClick = async (group) => {
@@ -89,17 +71,9 @@ export default function StudyGroupsPage() {
     }
 
     try {
-      if (USE_MOCK_DATA) {
-        toast.success(`Joined ${group.name}!`);
-        // Update local state for mock feel
-        setGroups(prev => prev.map(g => 
-          g._id === group._id ? { ...g, members: [...g.members, { _id: 'user_001', fullName: 'Aryan Patel' }] } : g
-        ));
-      } else {
-        await joinGroup(group._id);
-        toast.success(`Joined ${group.name}!`);
-        fetchGroups();
-      }
+      await joinGroup(group._id);
+      toast.success(`Joined ${group.name}!`);
+      fetchGroups();
     } catch (err) {
       toast.error(err.message || 'Failed to join group');
     }
@@ -109,16 +83,9 @@ export default function StudyGroupsPage() {
     if (!window.confirm(`Are you sure you want to leave ${group.name}?`)) return;
     
     try {
-      if (USE_MOCK_DATA) {
-        toast.success(`Left ${group.name}`);
-        setGroups(prev => prev.map(g => 
-          g._id === group._id ? { ...g, members: g.members.filter(m => m._id !== 'user_001') } : g
-        ));
-      } else {
-        await leaveGroup(group._id);
-        toast.success(`Left ${group.name}`);
-        fetchGroups();
-      }
+      await leaveGroup(group._id);
+      toast.success(`Left ${group.name}`);
+      fetchGroups();
     } catch (err) {
       toast.error(err.message || 'Failed to leave group');
     }
@@ -169,7 +136,7 @@ export default function StudyGroupsPage() {
           <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'rgb(var(--color-dark-500))' }} size={20} />
           <input 
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={handleSearchChange}
             placeholder="Search groups by name, subject, or tags..."
             style={{ 
               width: '100%', padding: '14px 16px 14px 48px', borderRadius: '14px', 

@@ -88,10 +88,16 @@ const getAll = async (filters = {}) => {
  * Get a single event by ID.
  * Optionally return the current user's registration status.
  */
-const getById = async (id) => {
+const getById = async (id, userId) => {
   const event = await Event.findById(id).populate('organizerId', 'fullName email avatar role department').lean();
   if (!event) {
     throw new AppError('Event not found', 404);
+  }
+  // Attach the current user's registration status
+  if (userId && event.registeredUsers) {
+    event.isRegistered = event.registeredUsers.some(
+      (r) => r.user.toString() === userId.toString()
+    );
   }
   return event;
 };
@@ -110,7 +116,9 @@ const update = async (id, data, userId) => {
 
   const allowed = [
     'title', 'description', 'venue', 'startDate', 'endDate',
-    'category', 'bannerUrl', 'tags', 'status'
+    'category', 'bannerUrl', 'bannerPublicId', 'tags', 'status',
+    'isOnline', 'meetLink', 'registrationLink', 'registrationDeadline',
+    'maxCapacity', 'department'
   ];
 
   for (const key of allowed) {
@@ -231,11 +239,53 @@ const getSidebarData = async (userId) => {
   };
 };
 
+/**
+ * Toggle RSVP for an event.
+ * If user is already registered, unregister them.
+ * If not, register them (if capacity allows).
+ *
+ * @param {string} eventId — Event's _id
+ * @param {string} userId — User's _id
+ * @returns {Promise<Object>} Updated event with registration status
+ */
+const rsvp = async (eventId, userId) => {
+  const event = await Event.findById(eventId);
+  if (!event) {
+    throw new AppError('Event not found', 404);
+  }
+
+  if (event.status === 'cancelled') {
+    throw new AppError('Cannot register for a cancelled event', 400);
+  }
+
+  const existingIndex = event.registeredUsers.findIndex(
+    (r) => r.user.toString() === userId.toString()
+  );
+
+  if (existingIndex !== -1) {
+    // Unregister
+    event.registeredUsers.splice(existingIndex, 1);
+    await event.save();
+    return { registered: false, registeredCount: event.registeredUsers.length };
+  }
+
+  // Check capacity
+  if (event.maxCapacity && event.registeredUsers.length >= event.maxCapacity) {
+    throw new AppError('Event has reached maximum capacity', 400);
+  }
+
+  // Register
+  event.registeredUsers.push({ user: userId });
+  await event.save();
+  return { registered: true, registeredCount: event.registeredUsers.length };
+};
+
 module.exports = {
   create,
   getAll,
   getById,
   update,
   remove,
+  rsvp,
   getSidebarData,
 };
