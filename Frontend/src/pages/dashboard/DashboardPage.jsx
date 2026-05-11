@@ -27,7 +27,7 @@ export default function DashboardPage() {
   }, [activeTab, fetchFeed]);
 
   const quickActions = [
-    { name: 'Find Team', icon: Users, path: '/teammates/create', color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { name: 'Find Team', icon: Users, path: '/teammates', color: 'text-blue-400', bg: 'bg-blue-500/10' },
     { name: 'Add Resource', icon: UploadCloud, path: '/resources', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
     { name: 'Ask Doubt', icon: MessageSquare, path: '/ai-solver', color: 'text-purple-400', bg: 'bg-purple-500/10' },
     { name: 'Sell Item', icon: ShoppingBag, path: '/marketplace', color: 'text-amber-400', bg: 'bg-amber-500/10' },
