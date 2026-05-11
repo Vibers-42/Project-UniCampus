@@ -92,7 +92,7 @@ export default function DashboardPage() {
           <div className="w-10 h-10 border-4 border-dark-800 border-t-primary-500 rounded-full animate-spin mb-4"></div>
           <p className="text-dark-400 font-bold text-xs uppercase tracking-widest">Compiling your feed...</p>
         </div>
-      ) : posts.length > 0 ? (
+      ) : Array.isArray(posts) && posts.length > 0 ? (
         <div className="space-y-6 max-w-2xl">
           {posts.map(post => (
             <PostCard key={post._id} post={post} onLike={likePost} />

@@ -6,6 +6,17 @@ import api from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
 
+// Safe wrapper so invalid dates never crash the render
+const safeFormat = (dateValue, fmt) => {
+  try {
+    const d = new Date(dateValue);
+    if (isNaN(d.getTime())) return '';
+    return format(d, fmt);
+  } catch {
+    return '';
+  }
+};
+
 export default function PortfolioPage() {
   const { rollNumber } = useParams();
   const { user } = useAuth();
@@ -200,7 +211,7 @@ export default function PortfolioPage() {
                         <span className="font-medium text-primary-400">{exp.organization}</span>
                         <span className="text-dark-600">•</span>
                         <span className="text-sm text-dark-400">
-                          {format(new Date(exp.startDate), 'MMM yyyy')} - {exp.isCurrent || !exp.endDate ? 'Present' : format(new Date(exp.endDate), 'MMM yyyy')}
+                          {safeFormat(exp.startDate, 'MMM yyyy')} - {exp.isCurrent || !exp.endDate ? 'Present' : safeFormat(exp.endDate, 'MMM yyyy')}
                         </span>
                         <span className="text-dark-600">•</span>
                         <span className="text-[10px] uppercase tracking-wider font-bold bg-dark-800 text-dark-300 px-2 py-0.5 rounded border border-dark-700">{exp.type.replace('_', ' ')}</span>
@@ -272,7 +283,7 @@ export default function PortfolioPage() {
                         <div className="flex items-center gap-2 text-xs text-dark-400 mb-2 mt-0.5">
                           {ach.issuer && <span className="font-medium text-dark-300">{ach.issuer}</span>}
                           {ach.issuer && <span>•</span>}
-                          <span>{format(new Date(ach.date), 'MMM yyyy')}</span>
+                          <span>{safeFormat(ach.date, 'MMM yyyy')}</span>
                         </div>
                         {ach.description && <p className="text-sm text-dark-400">{ach.description}</p>}
                       </div>

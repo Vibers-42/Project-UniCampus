@@ -133,6 +133,13 @@ const usersSchema = new mongoose.Schema(
       default: '',
     },
 
+    tagline: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Tagline cannot exceed 100 characters'],
+      default: '',
+    },
+
     skills: {
       type: [String], // e.g. ['react', 'node', 'python']
       default: [],
@@ -176,6 +183,12 @@ const usersSchema = new mongoose.Schema(
     },
 
     portfolio: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+
+    twitter: {
       type: String,
       trim: true,
       default: '',

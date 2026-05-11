@@ -10,10 +10,13 @@ export function useFeed() {
     setLoading(true);
     try {
       const res = await api.get(`/feed?type=${type}&page=${page}`);
-      setPosts(res.data.data.items);
+      setPosts(res.data?.data?.items ?? []);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      console.error('[useFeed] fetchFeed error:', err?.message || err);
+      setError(err.response?.data?.message || err.message || 'Failed to load feed');
+      // Ensure posts is always an array on error
+      setPosts(prev => Array.isArray(prev) ? prev : []);
     } finally {
       setLoading(false);
     }

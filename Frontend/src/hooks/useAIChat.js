@@ -20,10 +20,11 @@ export function useAIChat() {
     setLoading(true);
     try {
       const res = await api.get('/ai-chatbot/conversations');
-      setConversations(res.data.data);
+      setConversations(res.data?.data ?? []);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      console.error('[useAIChat] fetchConversations error:', err?.message || err);
+      setError(err.response?.data?.message || err.message || 'Failed to load conversations');
     } finally {
       setLoading(false);
     }
@@ -34,11 +35,12 @@ export function useAIChat() {
     setLoading(true);
     try {
       const res = await api.get(`/ai-chatbot/conversations/${conversationId}`);
-      setActiveConversation(res.data.data.conversation);
-      setMessages(res.data.data.messages);
+      setActiveConversation(res.data?.data?.conversation ?? null);
+      setMessages(res.data?.data?.messages ?? []);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      console.error('[useAIChat] loadConversation error:', err?.message || err);
+      setError(err.response?.data?.message || err.message || 'Failed to load conversation');
     } finally {
       setLoading(false);
     }

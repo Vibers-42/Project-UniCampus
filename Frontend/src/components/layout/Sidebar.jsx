@@ -23,7 +23,7 @@ export default function Sidebar() {
     { name: 'Messages', path: '/messages', icon: MessageSquare },
     { name: 'Marketplace', path: '/marketplace', icon: ShoppingBag },
     { name: 'AI Solver', path: '/ai-solver', icon: Sparkles },
-    { name: 'My Portfolio', path: '/portfolio/me', icon: UserCircle },
+    { name: 'Portfolio', path: '/portfolio/me', icon: UserCircle },
   ];
 
   return (
@@ -44,7 +44,7 @@ export default function Sidebar() {
               to={item.path}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                 isActive 
-                  ? 'bg-primary-500/10 text-primary-400 font-medium' 
+                  ? 'text-primary-400 font-medium' 
                   : 'text-dark-400 hover:text-dark-100 hover:bg-dark-800'
               }`}
             >
@@ -61,15 +61,23 @@ export default function Sidebar() {
           Settings
         </Link>
         
-        <div className="flex items-center gap-3 px-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-600 to-primary-400 flex items-center justify-center text-white font-bold shrink-0">
-            {user?.fullName?.charAt(0) || 'U'}
+        <Link
+          to="/profile"
+          className="flex items-center gap-3 px-3 group"
+          title="My Profile"
+        >
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-600 to-primary-400 flex items-center justify-center text-white font-bold shrink-0 group-hover:ring-2 group-hover:ring-primary-500/50 transition-all overflow-hidden border-2 border-dark-900">
+            {user?.avatar ? (
+              <img src={user.avatar} alt={user?.fullName || 'User'} className="w-full h-full object-cover" />
+            ) : (
+              user?.fullName?.charAt(0)?.toUpperCase() || 'U'
+            )}
           </div>
           <div className="overflow-hidden">
             <p className="text-sm font-medium text-dark-100 truncate">{user?.fullName}</p>
             <p className="text-xs text-dark-500 truncate capitalize">{user?.role}</p>
           </div>
-        </div>
+        </Link>
       </div>
     </aside>
   );

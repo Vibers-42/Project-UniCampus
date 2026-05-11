@@ -52,6 +52,9 @@ import CreateTeammatesPage from './pages/teammates/CreateTeammatesPage';
 // Portfolio
 import PortfolioPage from './pages/portfolio/PortfolioPage';
 import EditPortfolioPage from './pages/portfolio/EditPortfolioPage';
+
+// Profile
+import ProfilePage from './pages/profile/ProfilePage';
 export default function App() {
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -108,6 +111,8 @@ export default function App() {
           <Route path="/portfolio/me" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
           <Route path="/portfolio/edit" element={<ProtectedRoute><EditPortfolioPage /></ProtectedRoute>} />
           <Route path="/portfolio/:rollNumber" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
+
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
           {/* ── Default redirect ── */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
