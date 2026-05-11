@@ -13,10 +13,15 @@ export default function CreatePost({ onSubmit }) {
     e.preventDefault();
     if (!content.trim() && images.length === 0) return;
     setLoading(true);
-    await onSubmit({ content, images, type: 'Discussion' });
-    setContent('');
-    setImages([]);
-    setLoading(false);
+    try {
+      await onSubmit({ content, images, type: 'Discussion' });
+      setContent('');
+      setImages([]);
+    } catch (err) {
+      console.error('[CreatePost] submit error:', err?.message || err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleImageChange = async (e) => {

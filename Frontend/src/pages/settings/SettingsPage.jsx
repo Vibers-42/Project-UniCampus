@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Sun, Moon, LogOut, Shield, User, ChevronRight } from 'lucide-react';
+import { Sun, Moon, LogOut, Shield } from 'lucide-react';
 
 export default function SettingsPage() {
   const { logout, changePassword } = useAuth();
-  const navigate = useNavigate();
   
   // Theme state
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
@@ -48,22 +46,6 @@ export default function SettingsPage() {
         <div className="space-y-6">
           {/* General Settings */}
           <div className="auth-card p-0 overflow-hidden">
-            <div 
-              onClick={() => navigate('/settings/profile')}
-              className="p-6 border-b border-dark-800 flex justify-between items-center group cursor-pointer hover:bg-dark-800/30 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-400">
-                  <User size={24} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-dark-100">Edit Profile</h3>
-                  <p className="text-dark-400 text-sm mt-0.5">Update your photo, display name, bio, and portfolio links</p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-dark-500 group-hover:text-primary-400 transition-colors" />
-            </div>
-
             <div className="p-6 flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-400">

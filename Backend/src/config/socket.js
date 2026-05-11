@@ -1,5 +1,4 @@
 const { Server } = require('socket.io');
-const StudyGroup = require('../models/StudyGroup');
 const logger = require('../shared/utils/logger');
 
 let io;

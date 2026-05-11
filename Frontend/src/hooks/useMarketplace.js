@@ -12,14 +12,16 @@ export function useMarketplace() {
     try {
       const params = new URLSearchParams(filters).toString();
       const res = await api.get(`/marketplace?${params}`);
-      setItems(res.data.data.items);
+      const d = res.data?.data ?? {};
+      setItems(d.items ?? []);
       setPagination({
-        total: res.data.data.total,
-        pages: res.data.data.pages,
-        page: res.data.data.page
+        total: d.total ?? 0,
+        pages: d.pages ?? 1,
+        page: d.page ?? 1,
       });
       setError(null);
     } catch (err) {
+      console.error('[useMarketplace] fetchItems error:', err?.message || err);
       setError(err.response?.data?.message || 'Failed to fetch items');
     } finally {
       setLoading(false);

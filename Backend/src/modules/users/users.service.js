@@ -248,9 +248,9 @@ const updateProfile = async (email, updateData) => {
   // Whitelist — only these fields can be updated by the user
   const allowed = [
     'fullName', 'department', 'yearOfStudy',
-    'bio', 'skills', 'interests', 'techStack',
+    'bio', 'tagline', 'skills', 'interests', 'techStack',
     'rolesPreferred', 'availability',
-    'github', 'linkedin', 'portfolio',
+    'github', 'linkedin', 'portfolio', 'twitter',
   ];
 
   const sanitized = {};

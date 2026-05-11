@@ -6,6 +6,17 @@ import api from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
 
+// Safe wrapper so invalid dates never crash the render
+const safeFormat = (dateValue, fmt) => {
+  try {
+    const d = new Date(dateValue);
+    if (isNaN(d.getTime())) return '';
+    return format(d, fmt);
+  } catch {
+    return '';
+  }
+};
+
 export default function PortfolioPage() {
   const { rollNumber } = useParams();
   const { user } = useAuth();
@@ -254,16 +265,20 @@ export default function PortfolioPage() {
             <Briefcase size={20} className="text-primary-500" /> Experience
           </h3>
           {portfolio.experience?.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {portfolio.experience.map(exp => (
-                <div key={exp._id} className="p-4 bg-dark-950 border border-dark-800 rounded-xl">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                    <h4 className="font-bold text-dark-100 text-base">{exp.title}</h4>
-                    <span className="text-xs font-medium text-dark-400 bg-dark-900 px-2 py-1 rounded-md border border-dark-800 shrink-0">
-                      {format(new Date(exp.startDate), 'MMM yyyy')} - {exp.isCurrent || !exp.endDate ? 'Present' : format(new Date(exp.endDate), 'MMM yyyy')}
+                <div key={exp._id} className="relative pl-6 border-l-2 border-dark-800 last:border-transparent pb-6 last:pb-0">
+                  <div className="absolute w-3 h-3 bg-primary-500 rounded-full -left-[7px] top-1.5 ring-4 ring-dark-900"></div>
+                  <h4 className="text-lg font-bold text-dark-100">{exp.title}</h4>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 mb-3">
+                    <span className="font-medium text-primary-400">{exp.organization}</span>
+                    <span className="text-dark-600">•</span>
+                    <span className="text-sm text-dark-400">
+                      {safeFormat(exp.startDate, 'MMM yyyy')} - {exp.isCurrent || !exp.endDate ? 'Present' : safeFormat(exp.endDate, 'MMM yyyy')}
                     </span>
+                    <span className="text-dark-600">•</span>
+                    <span className="text-[10px] uppercase tracking-wider font-bold bg-dark-800 text-dark-300 px-2 py-0.5 rounded border border-dark-700">{exp.type.replace('_', ' ')}</span>
                   </div>
-                  <p className="text-sm font-medium text-primary-400 mb-2">{exp.organization} <span className="text-dark-500 font-normal">({exp.type.replace('_', ' ')})</span></p>
                   {exp.description && <p className="text-sm text-dark-300 whitespace-pre-wrap">{exp.description}</p>}
                 </div>
               ))}
@@ -331,14 +346,19 @@ export default function PortfolioPage() {
             <div className="space-y-4">
               {portfolio.achievements.map(ach => (
                 <div key={ach._id} className="p-4 bg-dark-950 border border-dark-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <h4 className="font-bold text-dark-100 text-base">{ach.title}</h4>
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-dark-400 mt-1">
-                      {ach.issuer && <span className="font-medium">{ach.issuer}</span>}
-                      {ach.issuer && <span>•</span>}
-                      <span>{format(new Date(ach.date), 'MMM yyyy')}</span>
+                  <div className="flex gap-4">
+                    <div className="w-10 h-10 rounded-full bg-primary-900/30 text-primary-400 flex items-center justify-center shrink-0 border border-primary-800/30">
+                      <Award size={20} />
                     </div>
-                    {ach.description && <p className="text-sm text-dark-300 mt-2">{ach.description}</p>}
+                    <div>
+                      <h4 className="font-bold text-dark-100 text-base">{ach.title}</h4>
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-dark-400 mt-1">
+                        {ach.issuer && <span className="font-medium">{ach.issuer}</span>}
+                        {ach.issuer && <span>•</span>}
+                        <span>{format(new Date(ach.date), 'MMM yyyy')}</span>
+                      </div>
+                      {ach.description && <p className="text-sm text-dark-300 mt-2">{ach.description}</p>}
+                    </div>
                   </div>
                   {ach.link && (
                     <a href={ach.link} target="_blank" rel="noreferrer" className="shrink-0 flex items-center gap-2 text-sm font-bold text-primary-400 hover:text-primary-300 bg-primary-500/10 px-4 py-2 rounded-lg transition-colors border border-primary-500/20">
@@ -354,6 +374,20 @@ export default function PortfolioPage() {
             </div>
           )}
         </section>
+
+        {/* Empty State / Call to Action */}
+        {isOwnProfile && (!portfolio.experience?.length && !portfolio.projects?.length && !portfolio.achievements?.length) && (
+          <div className="bg-dark-900 border border-dark-800 border-dashed rounded-3xl p-10 text-center shadow-lg mt-6">
+            <div className="w-16 h-16 bg-dark-800 rounded-full flex items-center justify-center text-dark-500 mx-auto mb-4 border border-dark-700">
+              <Briefcase size={28} />
+            </div>
+            <h3 className="text-xl font-bold text-dark-100 mb-2">Build Your Identity</h3>
+            <p className="text-dark-400 mb-6 max-w-md mx-auto">Your portfolio is empty! Add projects, internships, and achievements to showcase your skills to the campus ecosystem.</p>
+            <Link to="/portfolio/edit" className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-500 text-white px-6 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-primary-500/20">
+              <Edit size={18} /> Update Portfolio
+            </Link>
+          </div>
+        )}
 
         {/* User Activity Previews */}
         {(!isOwnProfile && (marketplaceItems.length > 0 || teamProjects.length > 0)) && (

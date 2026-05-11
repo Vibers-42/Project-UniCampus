@@ -42,6 +42,12 @@ const validateUpdateProfile = [
     .isLength({ max: 500 })
     .withMessage('Bio must be under 500 characters'),
 
+  body('tagline')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Tagline must be under 100 characters'),
+
   body('skills')
     .optional()
     .isArray({ max: 20 })
@@ -109,6 +115,11 @@ const validateUpdateProfile = [
     .optional()
     .isURL()
     .withMessage('Portfolio URL must be a valid URL'),
+
+  body('twitter')
+    .optional()
+    .isURL()
+    .withMessage('Twitter URL must be a valid URL'),
 ];
 
 /**

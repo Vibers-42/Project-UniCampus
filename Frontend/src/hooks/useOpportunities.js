@@ -11,10 +11,11 @@ export function useOpportunities() {
     try {
       const params = new URLSearchParams(filters).toString();
       const res = await api.get(`/opportunities?${params}`);
-      setOpportunities(res.data.data.items);
+      setOpportunities(res.data?.data?.items ?? []);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      console.error('[useOpportunities] fetch error:', err?.message || err);
+      setError(err.response?.data?.message || err.message || 'Failed to load opportunities');
     } finally {
       setLoading(false);
     }

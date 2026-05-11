@@ -236,7 +236,7 @@ export default function AIDoubtSolverPage() {
 
           {/* Conversation list */}
           <div className="flex-1 overflow-y-auto hide-scrollbar px-2 pb-3 space-y-0.5">
-            {conversations.length === 0 ? (
+            {!Array.isArray(conversations) || conversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
                 <MessageSquare size={22} className="text-dark-700 mb-2" />
                 <p className="text-dark-600 text-xs">No conversations yet</p>
@@ -258,7 +258,7 @@ export default function AIDoubtSolverPage() {
                     <p className="text-[13px] font-medium truncate leading-snug">{conv.title}</p>
                     <p className="text-[11px] text-dark-600 mt-0.5 flex items-center gap-1">
                       <Clock size={9} />
-                      {formatDistanceToNow(new Date(conv.updatedAt), { addSuffix: true })}
+                      {(() => { try { return formatDistanceToNow(new Date(conv.updatedAt), { addSuffix: true }); } catch { return ''; } })()}
                     </p>
                   </div>
                   <span
