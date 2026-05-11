@@ -1,50 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
- 
- 
- 
- 
- 
- 
-// eslint-disable-next-line no-unused-vars
 import { MapPin, User, CheckCircle, Clock, Calendar, Bookmark, Activity, Hash, ArrowRight, Users, Target, Search, AlertCircle, Wrench, Send, Briefcase } from 'lucide-react';
-
-export default function RightWidgets() {
-  const { user } = useAuth();
-  const location = useLocation();
-  const path = location.pathname;
-
-  // Render module-specific sidebar content
-  const renderContent = () => {
-    if (path.startsWith('/teammates')) {
-      return <TeammatesSidebar user={user} />;
-    }
-    
-    if (path === '/dashboard' || path === '/') {
-      return <HomeSidebar user={user} />;
-    }
-
-    // Default "Work in Progress" for other modules
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-dark-900/30 rounded-2xl border border-dark-800/50 border-dashed m-6">
-        <Wrench size={48} className="text-dark-600 mb-4" />
-        <h3 className="text-dark-100 font-bold mb-2">Contextual Sidebar</h3>
-        <p className="text-dark-400 text-sm">Work in progress for this module. The contextual sidebar will be implemented soon.</p>
-      </div>
-    );
-  };
-
-  return (
-    <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:flex flex-col h-screen overflow-y-auto hide-scrollbar">
-      {renderContent()}
-    </aside>
-  );
-}
+import OpportunitiesSidebar from '../opportunities/OpportunitiesSidebar';
+import MarketplaceSidebar from '../marketplace/MarketplaceSidebar';
 
 // ---------------------------------------------------------
 // TEAMMATES SIDEBAR
 // ---------------------------------------------------------
-// eslint-disable-next-line no-unused-vars
 function TeammatesSidebar({ user }) {
   // Placeholder Data for Teammates Context
   const trendingCategories = ['Hackathon', 'Open Source', 'Startup', 'Research'];
@@ -156,7 +118,7 @@ function HomeSidebar({ user }) {
   const trendingTags = ['#SIH2026', '#Hackathon', '#React', '#MLProjects', '#DBMS'];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 mt-16">
       {/* SECTION 1 — PROFILE SNAPSHOT */}
       <div className="bg-dark-900/40 rounded-2xl p-4 border border-dark-800/60 shadow-sm flex items-center gap-4">
         <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-primary-600 to-primary-400 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-primary-500/20 shrink-0 border-2 border-dark-950">
@@ -246,5 +208,48 @@ function HomeSidebar({ user }) {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RightWidgets() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const path = location.pathname;
+
+  // Render module-specific sidebar content
+  const renderContent = () => {
+    if (path.startsWith('/teammates')) {
+      return <TeammatesSidebar user={user} />;
+    }
+    
+    if (path.startsWith('/opportunities')) {
+      return <OpportunitiesSidebar />;
+    }
+    
+    if (path.startsWith('/marketplace')) {
+      return <MarketplaceSidebar />;
+    }
+
+    if (path === '/dashboard' || path === '/' || path === '/home') {
+      return <HomeSidebar user={user} />;
+    }
+
+    // Default "Work in Progress" for other modules
+    const moduleName = path.split('/')[1] || 'Module';
+    const formattedName = moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
+    
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-dark-900/30 rounded-2xl border border-dark-800/50 border-dashed m-6">
+        <Wrench size={48} className="text-dark-600 mb-4" />
+        <h3 className="text-dark-100 font-bold mb-2">{formattedName} Sidebar</h3>
+        <p className="text-dark-400 text-sm">Work in progress for this module. The contextual sidebar will be implemented soon.</p>
+      </div>
+    );
+  };
+
+  return (
+    <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:flex flex-col h-screen overflow-y-auto hide-scrollbar">
+      {renderContent()}
+    </aside>
   );
 }

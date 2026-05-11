@@ -5,12 +5,13 @@ const AppError = require('../../shared/utils/AppError');
  * Get all marketplace items with filtering and search
  */
 const getAll = async (queryParams) => {
-  const { category, search, page = 1, limit = 20 } = queryParams;
+  const { category, search, sellerId, page = 1, limit = 20 } = queryParams;
   const skip = (page - 1) * limit;
 
   const query = { isDeleted: false };
 
   if (category) query.category = category;
+  if (sellerId) query.sellerId = sellerId;
   if (search) {
     query.$text = { $search: search };
   }
@@ -91,10 +92,42 @@ const markSold = async (id, userId) => {
   return item;
 };
 
+/**
+ * Update a listing (owner only)
+ */
+const update = async (id, data, userId) => {
+  const item = await MarketplaceItem.findById(id);
+
+  if (!item) {
+    throw new AppError('Item not found', 404);
+  }
+
+  if (item.sellerId.toString() !== userId.toString()) {
+    throw new AppError('Only the seller can edit this listing', 403);
+  }
+
+  // Whitelist updatable fields
+  const allowedFields = [
+    'title', 'description', 'price', 'category', 'condition',
+    'negotiable', 'department', 'location', 'image', 'attachments',
+    'tags', 'contactInfo', 'isSold'
+  ];
+
+  allowedFields.forEach(field => {
+    if (data[field] !== undefined) {
+      item[field] = data[field];
+    }
+  });
+
+  await item.save();
+  return item;
+};
+
 module.exports = {
   getAll,
   getById,
   create,
   remove,
-  markSold
+  markSold,
+  update
 };
