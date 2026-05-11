@@ -25,7 +25,7 @@ export default function PortfolioSidebar() {
 
   if (isLoading) {
     return (
-      <div className="p-6 h-full mt-16 animate-pulse">
+      <div className="p-6 h-full animate-pulse">
         <div className="h-32 bg-dark-900 rounded-2xl mb-6"></div>
         <div className="h-64 bg-dark-900 rounded-2xl"></div>
       </div>
@@ -93,7 +93,7 @@ export default function PortfolioSidebar() {
   const completionPercentage = Math.round((completedCount / sections.length) * 100);
 
   return (
-    <div className="p-6 space-y-6 mt-16">
+    <div className="p-6 space-y-6">
       {/* Completion Progress Widget */}
       <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 w-24 h-24 bg-primary-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>

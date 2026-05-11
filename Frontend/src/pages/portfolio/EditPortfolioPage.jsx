@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save, GitBranch, Book, MessageSquare, Globe, Code2, Plus, Trash2, FileText, Upload, Briefcase, Award, FolderGit2, X } from 'lucide-react';
+import { ArrowLeft, Save, GitBranch, Book, MessageSquare, Globe, Code2, Plus, Trash2, FileText, Upload, Briefcase, Award, FolderGit2, X, User } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import api from '../../config/api';
 import { uploadImage } from '../../utils/upload';
