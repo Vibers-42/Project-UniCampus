@@ -49,6 +49,8 @@ exports.updatePortfolio = async (userId, updateData) => {
   if (updateData.bio !== undefined) portfolio.bio = updateData.bio;
   if (updateData.skills !== undefined) portfolio.skills = updateData.skills;
   if (updateData.profileImage !== undefined) portfolio.profileImage = updateData.profileImage;
+  if (updateData.resumeUrl !== undefined) portfolio.resumeUrl = updateData.resumeUrl;
+  if (updateData.cgpa !== undefined) portfolio.cgpa = updateData.cgpa;
   
   if (updateData.socialLinks) {
     portfolio.socialLinks = { ...portfolio.socialLinks, ...updateData.socialLinks };

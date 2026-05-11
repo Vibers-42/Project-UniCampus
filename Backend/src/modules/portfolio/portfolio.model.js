@@ -11,6 +11,7 @@ const projectSchema = new mongoose.Schema({
   techStack: [{ type: String, trim: true }],
   githubLink: { type: String, trim: true, default: '' },
   liveLink: { type: String, trim: true, default: '' },
+  image: { type: String, default: '' }, // Cloudinary URL
   status: { type: String, enum: ['ongoing', 'completed'], default: 'completed' },
 });
 
@@ -28,7 +29,8 @@ const achievementSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   description: { type: String, trim: true, default: '' },
   issuer: { type: String, trim: true, default: '' },
-  date: { type: Date, required: true }
+  date: { type: Date, required: true },
+  link: { type: String, trim: true, default: '' }
 });
 
 const portfolioSchema = new mongoose.Schema(
@@ -65,7 +67,16 @@ const portfolioSchema = new mongoose.Schema(
     }],
     projects: [projectSchema],
     experience: [experienceSchema],
-    achievements: [achievementSchema]
+    achievements: [achievementSchema],
+    cgpa: {
+      type: Number,
+      min: 0,
+      max: 10
+    },
+    resumeUrl: {
+      type: String,
+      default: ''
+    }
   },
   {
     timestamps: true

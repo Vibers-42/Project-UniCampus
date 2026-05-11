@@ -9,6 +9,8 @@ exports.updatePortfolioValidation = [
   body('profileImage').optional().isURL(),
   body('skills').optional().isArray(),
   body('socialLinks').optional().isObject(),
+  body('resumeUrl').optional().isURL(),
+  body('cgpa').optional().isFloat({ min: 0, max: 10 }),
 ];
 
 exports.addProjectValidation = [
@@ -17,6 +19,7 @@ exports.addProjectValidation = [
   body('techStack').optional().isArray(),
   body('githubLink').optional().isString().trim(),
   body('liveLink').optional().isString().trim(),
+  body('image').optional().isURL(),
   body('status').optional().isIn(['ongoing', 'completed'])
 ];
 
@@ -34,7 +37,8 @@ exports.addAchievementValidation = [
   body('title').exists().isString().trim(),
   body('description').optional().isString().trim(),
   body('issuer').optional().isString().trim(),
-  body('date').exists().isISO8601()
+  body('date').exists().isISO8601(),
+  body('link').optional().isURL()
 ];
 
 exports.rollNumberValidation = [

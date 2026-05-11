@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Edit, ExternalLink, GitBranch, Book, MapPin, MessageSquare, Globe, BookOpen, Briefcase, Award, FolderGit2, ShieldCheck, Mail, Code2, Terminal } from 'lucide-react';
+import { Edit, ExternalLink, GitBranch, Book, MapPin, MessageSquare, Globe, BookOpen, Briefcase, Award, FolderGit2, ShieldCheck, Mail, Code2, Terminal, FileText } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import api from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -106,11 +106,17 @@ export default function PortfolioPage() {
                 <div className="flex items-center gap-4 mt-2 text-sm text-dark-400">
                   <span className="flex items-center gap-1"><BookOpen size={14} /> {profileUser.department}</span>
                   <span className="flex items-center gap-1"><MapPin size={14} /> Year {profileUser.yearOfStudy}</span>
+                  {portfolio.cgpa && <span className="flex items-center gap-1"><Award size={14} /> {portfolio.cgpa} CGPA</span>}
                 </div>
               </div>
               
               {/* Social Links Quick Access */}
-              <div className="flex gap-3 pb-2">
+              <div className="flex gap-3 pb-2 items-center">
+                {portfolio.resumeUrl && (
+                  <a href={portfolio.resumeUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 h-10 rounded-xl bg-dark-800 text-dark-200 hover:text-white hover:bg-dark-700 transition-colors border border-dark-700 font-medium text-sm">
+                    <FileText size={16} /> Resume
+                  </a>
+                )}
                 {links.github && <a href={links.github} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-dark-800 flex items-center justify-center text-dark-300 hover:text-white hover:bg-dark-700 transition-colors border border-dark-700"><GitBranch size={18} /></a>}
                 {links.linkedin && <a href={links.linkedin} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-dark-800 flex items-center justify-center text-dark-300 hover:text-[#0a66c2] hover:bg-dark-700 transition-colors border border-dark-700"><Book size={18} /></a>}
                 {links.website && <a href={links.website} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-dark-800 flex items-center justify-center text-dark-300 hover:text-primary-400 hover:bg-dark-700 transition-colors border border-dark-700"><Globe size={18} /></a>}
@@ -269,10 +275,18 @@ export default function PortfolioPage() {
                       </div>
                       <div>
                         <h4 className="font-bold text-dark-100">{ach.title}</h4>
-                        <div className="flex items-center gap-2 text-xs text-dark-400 mb-2 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-dark-400 mb-2 mt-0.5">
                           {ach.issuer && <span className="font-medium text-dark-300">{ach.issuer}</span>}
                           {ach.issuer && <span>•</span>}
                           <span>{format(new Date(ach.date), 'MMM yyyy')}</span>
+                          {ach.link && (
+                            <>
+                              <span>•</span>
+                              <a href={ach.link} target="_blank" rel="noreferrer" className="text-primary-400 hover:underline flex items-center gap-1">
+                                <ExternalLink size={12} /> Credential
+                              </a>
+                            </>
+                          )}
                         </div>
                         {ach.description && <p className="text-sm text-dark-400">{ach.description}</p>}
                       </div>

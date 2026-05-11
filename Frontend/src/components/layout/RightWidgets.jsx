@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { MapPin, User, CheckCircle, Clock, Calendar, Bookmark, Activity, Hash, ArrowRight, Users, Target, Search, AlertCircle, Wrench, Send, Briefcase } from 'lucide-react';
 import OpportunitiesSidebar from '../opportunities/OpportunitiesSidebar';
 import MarketplaceSidebar from '../marketplace/MarketplaceSidebar';
+import PortfolioSidebar from '../portfolio/PortfolioSidebar';
 
 // ---------------------------------------------------------
 // TEAMMATES SIDEBAR
@@ -228,6 +229,10 @@ export default function RightWidgets() {
     
     if (path.startsWith('/marketplace')) {
       return <MarketplaceSidebar />;
+    }
+    
+    if (path.startsWith('/portfolio')) {
+      return <PortfolioSidebar />;
     }
 
     if (path === '/dashboard' || path === '/' || path === '/home') {
