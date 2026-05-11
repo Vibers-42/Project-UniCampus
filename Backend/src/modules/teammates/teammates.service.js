@@ -34,6 +34,10 @@ exports.getAllProjects = async (query) => {
     filter.category = query.category;
   }
 
+  if (query.creatorId) {
+    filter.creatorId = query.creatorId;
+  }
+
   // If techStack is provided as comma separated string
   if (query.techStack) {
     const stacks = query.techStack.split(',').map(s => new RegExp(s.trim(), 'i'));

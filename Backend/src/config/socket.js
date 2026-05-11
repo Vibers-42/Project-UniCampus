@@ -41,6 +41,16 @@ const initSocket = (server) => {
       socket.leave(`thread:${threadId}`);
     });
 
+    // Direct Messaging User Rooms
+    socket.on('joinUserRoom', (userId) => {
+      socket.join(`user:${userId}`);
+      logger.debug(`Socket ${socket.id} joined user room: ${userId}`);
+    });
+
+    socket.on('leaveUserRoom', (userId) => {
+      socket.leave(`user:${userId}`);
+    });
+
     // Typing Indicators
     socket.on('typing', (groupId, threadId) => {
       const room = threadId ? `thread:${threadId}` : `group:${groupId}`;

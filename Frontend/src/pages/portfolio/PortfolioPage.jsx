@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Edit, ExternalLink, GitBranch, Book, MapPin, Globe, BookOpen, Briefcase, Award, FolderGit2, Mail, Code2, Terminal, FileText, User } from 'lucide-react';
+import { Edit, ExternalLink, GitBranch, Book, MapPin, Globe, BookOpen, Briefcase, Award, FolderGit2, Mail, Code2, Terminal, FileText, User, MessageSquare, Store, Users } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import api from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,6 +13,8 @@ export default function PortfolioPage() {
   const navigate = useNavigate();
   
   const [portfolio, setPortfolio] = useState(null);
+  const [marketplaceItems, setMarketplaceItems] = useState([]);
+  const [teamProjects, setTeamProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -25,12 +27,33 @@ export default function PortfolioPage() {
       setError('');
       const url = isOwnProfile ? '/portfolio/me' : `/portfolio/${rollNumber}`;
       const res = await api.get(url);
-      setPortfolio(res.data.data.portfolio);
+      const fetchedPortfolio = res.data.data.portfolio;
+      setPortfolio(fetchedPortfolio);
+
+      try {
+        const [marketRes, teamRes] = await Promise.all([
+          api.get(`/marketplace?sellerId=${fetchedPortfolio.userId._id}`),
+          api.get(`/teammates?creatorId=${fetchedPortfolio.userId._id}`)
+        ]);
+        setMarketplaceItems(marketRes.data.data.items || []);
+        setTeamProjects(teamRes.data.data.projects || []);
+      } catch (err) {
+        console.error('Failed to fetch user activity', err);
+      }
     } catch (err) {
       console.error('Failed to fetch portfolio', err);
       setError(err.response?.data?.message || 'Portfolio not found');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleMessageClick = async () => {
+    try {
+      await api.post('/messages/conversations', { receiverId: portfolio.userId._id });
+      navigate('/messages');
+    } catch (err) {
+      console.error('Failed to start conversation', err);
     }
   };
 
@@ -77,10 +100,14 @@ export default function PortfolioPage() {
         {/* Header Actions */}
         <div className="flex items-center justify-between pb-4 border-b border-dark-800">
           <h1 className="text-2xl font-bold text-dark-100">Student Portfolio</h1>
-          {isOwnProfile && (
+          {isOwnProfile ? (
             <Link to="/portfolio/edit" className="bg-primary-600 hover:bg-primary-500 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all text-sm font-bold shadow-lg">
               <Edit size={16} /> Edit Portfolio
             </Link>
+          ) : (
+            <button onClick={handleMessageClick} className="bg-primary-600 hover:bg-primary-500 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all text-sm font-bold shadow-lg">
+              <MessageSquare size={16} /> Message
+            </button>
           )}
         </div>
 
@@ -327,6 +354,78 @@ export default function PortfolioPage() {
             </div>
           )}
         </section>
+
+        {/* User Activity Previews */}
+        {(!isOwnProfile && (marketplaceItems.length > 0 || teamProjects.length > 0)) && (
+          <>
+            <div className="flex items-center gap-4 py-4">
+              <div className="flex-1 h-px bg-dark-800"></div>
+              <h2 className="text-xl font-bold text-dark-300 uppercase tracking-widest text-sm">Recent Activity</h2>
+              <div className="flex-1 h-px bg-dark-800"></div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Marketplace Activity */}
+              {marketplaceItems.length > 0 && (
+                <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+                  <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
+                    <Store size={20} className="text-primary-500" /> Marketplace Activity
+                  </h3>
+                  <div className="space-y-4">
+                    {marketplaceItems.slice(0, 3).map(item => (
+                      <Link to={`/marketplace/${item._id}`} key={item._id} className="block p-4 bg-dark-950 border border-dark-800 rounded-xl hover:border-primary-500/30 transition-colors">
+                        <div className="flex gap-4">
+                          <div className="w-16 h-16 rounded-lg bg-dark-800 overflow-hidden shrink-0 border border-dark-700">
+                            {item.image ? (
+                              <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <Store className="w-full h-full p-4 text-dark-500" />
+                            )}
+                          </div>
+                          <div className="flex-1 overflow-hidden">
+                            <h4 className="font-bold text-dark-100 text-sm truncate">{item.title}</h4>
+                            <p className="text-primary-400 font-semibold text-xs my-1">₹{item.price}</p>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${item.isSold ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>
+                              {item.isSold ? 'Sold' : 'Available'}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Team Projects Activity */}
+              {teamProjects.length > 0 && (
+                <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+                  <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
+                    <Users size={20} className="text-primary-500" /> Teammate Recruitment
+                  </h3>
+                  <div className="space-y-4">
+                    {teamProjects.slice(0, 3).map(proj => (
+                      <Link to={`/teammates/${proj._id}`} key={proj._id} className="block p-4 bg-dark-950 border border-dark-800 rounded-xl hover:border-primary-500/30 transition-colors">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-bold text-dark-100 text-sm truncate pr-2">{proj.title}</h4>
+                          <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${proj.status === 'open' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-dark-800 text-dark-400 border-dark-700'}`}>
+                            {proj.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-dark-400 line-clamp-2 mb-3">{proj.shortDescription}</p>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-primary-400 font-medium bg-primary-500/10 px-2 py-1 rounded">
+                            {proj.currentTeamSize} / {proj.requiredTeamSize} Members
+                          </span>
+                          <span className="text-dark-500">{format(new Date(proj.createdAt), 'MMM d')}</span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          </>
+        )}
 
       </div>
     </DashboardLayout>

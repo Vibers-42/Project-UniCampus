@@ -357,7 +357,11 @@ const searchUsers = async (filters = {}) => {
   }
 
   if (filters.search) {
-    query.$text = { $search: filters.search };
+    query.$or = [
+      { rollNumber: new RegExp(filters.search, 'i') },
+      { fullName: new RegExp(filters.search, 'i') },
+      { department: new RegExp(filters.search, 'i') }
+    ];
   }
 
   const { page, limit, skip } = parsePagination(filters);

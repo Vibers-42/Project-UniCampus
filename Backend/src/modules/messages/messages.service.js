@@ -146,6 +146,15 @@ const sendMessage = async (conversationId, senderId, content) => {
   conversation.lastMessageAt = message.createdAt;
   await conversation.save();
 
+  try {
+    const { getIO } = require('../../config/socket');
+    const io = getIO();
+    io.to(`user:${receiverId}`).emit('newMessage', message);
+    io.to(`user:${senderId}`).emit('newMessage', message);
+  } catch (err) {
+    console.error('Socket error in sendMessage:', err);
+  }
+
   return message;
 };
 

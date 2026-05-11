@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Send, User as UserIcon, MessageSquare } from 'lucide-react';
+import { Send, User as UserIcon, MessageSquare, Search, X, MapPin, BookOpen, Terminal, ExternalLink } from 'lucide-react';
+import { io } from 'socket.io-client';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import api from '../../config/api';
@@ -12,13 +14,16 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [newMessage, setNewMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   const messagesEndRef = useRef(null);
+  const socketRef = useRef(null);
 
   const fetchConversations = async () => {
     try {
@@ -49,54 +54,92 @@ export default function MessagesPage() {
 
   // Poll for messages when a conversation is active
   useEffect(() => {
-    let interval;
     if (activeConversation) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchMessages(activeConversation._id);
-      interval = setInterval(() => {
-        fetchMessages(activeConversation._id, false); // false means don't set loading state
-      }, 5000); // Poll every 5s
     }
-    return () => clearInterval(interval);
   }, [activeConversation]);
+
+  // Socket IO Setup
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const url = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '');
+    socketRef.current = io(url, {
+      withCredentials: true,
+    });
+
+    socketRef.current.emit('joinUserRoom', user._id);
+
+    socketRef.current.on('newMessage', (message) => {
+      // Add message to current conversation if it belongs there
+      setMessages((prev) => {
+        // If we are viewing the conversation this message belongs to
+        if (prev.length > 0 && prev[0].conversationId === message.conversationId) {
+          // avoid duplicates
+          if (prev.find(m => m._id === message._id)) return prev;
+          return [...prev, message];
+        }
+        return prev;
+      });
+      // Refresh sidebar to update last message and sorting
+      fetchConversations();
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [user?._id]);
 
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Search Debounce
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchQuery.trim().length >= 2) {
+        setIsSearching(true);
+        try {
+          const res = await api.get(`/users/search?search=${encodeURIComponent(searchQuery)}&limit=10`);
+          setSearchResults(res.data.data.items.filter(u => u._id !== user._id));
+        } catch (err) {
+          console.error('Failed to search users', err);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, user?._id]);
 
-  const handleSearch = async (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    
-    if (query.length < 3) {
-      setSearchResults([]);
-      return;
-    }
-
+  const handleViewProfile = async (rollNumber) => {
     try {
-      setIsSearching(true);
-      const res = await api.get(`/messages/search?rollNumber=${query}`);
-      setSearchResults(res.data.data.users.filter(u => u._id !== user._id)); // Exclude self
+      setIsProfileModalOpen(true);
+      setSelectedProfile(null); // Clear previous
+      const res = await api.get(`/portfolio/${rollNumber}`);
+      setSelectedProfile(res.data.data.portfolio);
     } catch (error) {
-      console.error('Failed to search users', error);
-    } finally {
-      setIsSearching(false);
+      console.error('Failed to fetch profile', error);
+      // Even if portfolio doesn't exist, we can show an empty state in modal
+      setSelectedProfile({ error: 'Portfolio not set up yet.' });
     }
   };
+
 
   const startConversation = async (receiverId) => {
     try {
       const res = await api.post('/messages/conversations', { receiverId });
       const conv = res.data.data.conversation;
       
-      // Clear search
-      setSearchQuery('');
-      setSearchResults([]);
-      
       // Set active
       setActiveConversation(conv);
+      setSearchQuery(''); // clear search
       
       // Refresh conversation list to bump this to top if needed
       fetchConversations();
@@ -117,8 +160,15 @@ export default function MessagesPage() {
         content
       });
       
-      // Optimistically add message
-      setMessages(prev => [...prev, res.data.data.message]);
+      // Do not manually add the message here, it will be added via the Socket.io event 'newMessage'
+      // Wait, since we are emitting it to ourselves too (in the backend), it will be caught by the socket event!
+      // Actually we should optimize by adding it optimistically, then filtering duplicates. 
+      // But let's just let the socket handle it since it's fast.
+      // But we can keep optimistic UI just in case:
+      setMessages(prev => {
+        if (prev.find(m => m._id === res.data.data.message._id)) return prev;
+        return [...prev, res.data.data.message];
+      });
       fetchConversations(); // Update sidebar last message
     } catch (error) {
       console.error('Failed to send message', error);
@@ -130,68 +180,83 @@ export default function MessagesPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="flex h-[calc(100vh-8rem)] bg-dark-900 border border-dark-800 rounded-3xl overflow-hidden shadow-2xl">
+    <DashboardLayout hideWidgets={true} fullWidth={true}>
+      <div className="flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-dark-950">
         
-        {/* Left Sidebar - Conversations & Search */}
-        <div className="w-full md:w-80 lg:w-96 border-r border-dark-800 flex flex-col bg-dark-950/50">
-          <div className="p-4 border-b border-dark-800">
-            <h2 className="text-xl font-bold text-dark-100 mb-4">Messages</h2>
+        {/* Left Sidebar - Conversations */}
+        <div className="w-full md:w-[350px] lg:w-[400px] border-r border-dark-800 flex flex-col bg-dark-900/40">
+          <div className="p-5 border-b border-dark-800 bg-dark-950/50 space-y-4">
+            <h2 className="text-xl font-bold text-dark-100">Messages</h2>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500" size={18} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={handleSearch}
-                placeholder="Search roll number..."
-                className="w-full bg-dark-900 border border-dark-800 rounded-xl py-2 pl-10 pr-4 text-sm text-dark-100 focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/50 transition-all outline-none placeholder:text-dark-500"
+              <input 
+                 type="text"
+                 placeholder="Search students to message..."
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 className="w-full bg-dark-900 border border-dark-800 rounded-xl py-2.5 pl-10 pr-10 text-sm text-dark-100 placeholder:text-dark-500 focus:outline-none focus:border-primary-500/50 transition-all shadow-inner"
               />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-dark-300 transition-colors">
+                  <X size={16} />
+                </button>
+              )}
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto hide-scrollbar p-2">
-            {/* Search Results */}
-            {searchQuery.length >= 3 && (
-              <div className="mb-4">
-                <p className="text-xs font-semibold text-dark-500 uppercase px-2 mb-2">Search Results</p>
+            {searchQuery.trim().length >= 2 ? (
+              // Search Results
+              <div className="space-y-1">
+                <p className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-dark-500">Search Results</p>
                 {isSearching ? (
-                  <p className="text-sm text-dark-400 px-2">Searching...</p>
+                  <p className="text-center text-dark-400 py-4 text-sm animate-pulse">Searching students...</p>
                 ) : searchResults.length > 0 ? (
                   searchResults.map(result => (
-                    <button
-                      key={result._id}
-                      onClick={() => startConversation(result._id)}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-dark-800 transition-colors text-left"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-primary-900/50 flex items-center justify-center border border-primary-800 shrink-0">
+                    <div key={result._id} className="flex items-center gap-3 p-3 rounded-xl bg-dark-800/30 border border-dark-800/50 hover:bg-dark-800 transition-all group">
+                      <div className="w-12 h-12 rounded-full bg-dark-800 flex items-center justify-center overflow-hidden border border-dark-700 shrink-0">
                         {result.avatar ? (
-                          <img src={result.avatar} alt={result.fullName} className="w-full h-full rounded-full object-cover" />
+                          <img src={result.avatar} alt={result.fullName} className="w-full h-full object-cover" />
                         ) : (
-                          <UserIcon size={20} className="text-primary-400" />
+                          <span className="text-dark-300 font-bold">{result.fullName?.charAt(0)}</span>
                         )}
                       </div>
-                      <div className="overflow-hidden">
-                        <p className="font-medium text-dark-100 truncate">{result.fullName}</p>
-                        <p className="text-xs text-primary-400 truncate">{result.rollNumber}</p>
+                      <div className="flex-1 overflow-hidden">
+                        <p className="font-semibold text-dark-100 text-[15px] truncate">{result.fullName}</p>
+                        <p className="text-xs text-dark-400 truncate">{result.rollNumber} • {result.department}</p>
                       </div>
-                    </button>
+                      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => handleViewProfile(result.rollNumber)} 
+                          className="p-2 bg-dark-700 text-dark-300 hover:text-white hover:bg-dark-600 rounded-lg transition-colors" 
+                          title="View Profile"
+                        >
+                          <UserIcon size={16} />
+                        </button>
+                        <button 
+                          onClick={() => startConversation(result._id)} 
+                          className="p-2 bg-primary-600 text-white hover:bg-primary-500 rounded-lg transition-colors shadow-lg shadow-primary-500/20" 
+                          title="Message"
+                        >
+                          <MessageSquare size={16} />
+                        </button>
+                      </div>
+                    </div>
                   ))
                 ) : (
-                  <p className="text-sm text-dark-400 px-2">No students found.</p>
+                  <p className="text-center text-dark-400 py-4 text-sm">No students found matching "{searchQuery}"</p>
                 )}
-                <div className="my-3 border-t border-dark-800"></div>
-              </div>
-            )}
-
-            {/* Conversations List */}
-            {conversations.length === 0 && !searchQuery ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-dark-400">
-                <MessageSquare size={40} className="mb-4 opacity-20" />
-                <p className="text-sm">No conversations yet.</p>
-                <p className="text-xs mt-1">Search a roll number to start chatting!</p>
               </div>
             ) : (
-              !searchQuery && conversations.map(conv => {
+              // Conversations List
+              conversations.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-dark-400">
+                <MessageSquare size={40} className="mb-4 opacity-20" />
+                <p className="text-sm">No conversations yet.</p>
+                <p className="text-xs mt-1">Search for a student using the top search bar to start chatting!</p>
+              </div>
+            ) : (
+              conversations.map(conv => {
                 const otherUser = getOtherParticipant(conv);
                 const isActive = activeConversation?._id === conv._id;
                 
@@ -241,11 +306,11 @@ export default function MessagesPage() {
         </div>
 
         {/* Right Side - Chat Window */}
-        <div className="flex-1 flex flex-col bg-dark-900 relative">
+        <div className="flex-1 flex flex-col relative bg-dark-950/50">
           {activeConversation ? (
             <>
               {/* Chat Header */}
-              <div className="h-16 border-b border-dark-800 px-6 flex items-center gap-4 bg-dark-950/30 backdrop-blur-md absolute top-0 w-full z-10">
+              <div className="h-16 border-b border-dark-800 px-6 flex items-center gap-4 bg-dark-900/80 backdrop-blur-xl absolute top-0 w-full z-10 shadow-sm">
                 <div className="w-10 h-10 rounded-full bg-dark-800 flex items-center justify-center overflow-hidden border border-dark-700">
                   {getOtherParticipant(activeConversation).avatar ? (
                     <img src={getOtherParticipant(activeConversation).avatar} alt="Avatar" className="w-full h-full object-cover" />
@@ -303,8 +368,8 @@ export default function MessagesPage() {
               </div>
 
               {/* Input Area */}
-              <div className="p-4 bg-dark-950/50 border-t border-dark-800 mt-auto">
-                <form onSubmit={handleSendMessage} className="flex items-end gap-3 bg-dark-900 border border-dark-700 rounded-2xl p-1.5 focus-within:border-primary-500/50 focus-within:ring-1 focus-within:ring-primary-500/20 transition-all shadow-inner">
+              <div className="p-4 bg-dark-900/80 backdrop-blur-md border-t border-dark-800 mt-auto">
+                <form onSubmit={handleSendMessage} className="flex items-end gap-3 bg-dark-950 border border-dark-800 rounded-2xl p-1.5 focus-within:border-primary-500/50 focus-within:ring-1 focus-within:ring-primary-500/20 transition-all shadow-inner max-w-4xl mx-auto">
                   <textarea
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
@@ -335,12 +400,104 @@ export default function MessagesPage() {
               </div>
               <h2 className="text-2xl font-bold text-dark-100 mb-2">Your Messages</h2>
               <p className="text-dark-400 max-w-sm">
-                Select a conversation from the sidebar or search for a student's roll number to start a new chat.
+                Select a conversation from the sidebar or search for a student using the top search bar to start a new chat.
               </p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Profile Modal */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dark-900 border border-dark-800 rounded-2xl w-full max-w-lg overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-5 border-b border-dark-800 bg-dark-950/50">
+              <h3 className="font-bold text-dark-100">Student Profile</h3>
+              <button 
+                onClick={() => setIsProfileModalOpen(false)} 
+                className="text-dark-400 hover:text-white p-1.5 hover:bg-dark-800 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[75vh]">
+              {!selectedProfile ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-10 h-10 border-2 border-dark-800 border-t-primary-500 rounded-full animate-spin mb-4"></div>
+                  <p className="text-dark-400 text-sm">Loading profile data...</p>
+                </div>
+              ) : selectedProfile.error ? (
+                <div className="text-center py-8">
+                  <UserIcon size={48} className="mx-auto text-dark-700 mb-4" />
+                  <p className="text-dark-300 font-medium">User has not setup their portfolio yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex gap-5 items-center">
+                    <div className="w-24 h-24 rounded-full border-2 border-dark-700 bg-dark-800 overflow-hidden shrink-0 flex items-center justify-center">
+                      {selectedProfile.profileImage || selectedProfile.userId?.avatar ? (
+                        <img src={selectedProfile.profileImage || selectedProfile.userId?.avatar} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <UserIcon size={40} className="text-dark-500" />
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-dark-100">{selectedProfile.userId?.fullName}</h2>
+                      <p className="text-primary-400 font-medium text-sm mt-0.5">{selectedProfile.userId?.rollNumber}</p>
+                      <div className="flex flex-col gap-1 mt-2 text-sm text-dark-400">
+                        <span className="flex items-center gap-1.5"><BookOpen size={14} /> {selectedProfile.userId?.department}</span>
+                        <span className="flex items-center gap-1.5"><MapPin size={14} /> Year {selectedProfile.userId?.yearOfStudy}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedProfile.bio && (
+                    <div>
+                      <h4 className="text-xs font-bold text-dark-500 uppercase tracking-wider mb-2">About</h4>
+                      <p className="text-sm text-dark-200 leading-relaxed bg-dark-950 p-4 rounded-xl border border-dark-800">
+                        {selectedProfile.bio}
+                      </p>
+                    </div>
+                  )}
+
+                  {(selectedProfile.skills?.length > 0 || selectedProfile.techStack?.length > 0) && (
+                    <div>
+                      <h4 className="text-xs font-bold text-dark-500 uppercase tracking-wider mb-2">Top Skills</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {[...(selectedProfile.techStack || []), ...(selectedProfile.skills || [])].slice(0, 8).map((skill, idx) => (
+                          <span key={idx} className="bg-dark-800 text-dark-200 px-2.5 py-1 rounded-lg text-xs border border-dark-700">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="pt-4 border-t border-dark-800 flex justify-end gap-3">
+                    <button 
+                      onClick={() => {
+                        setIsProfileModalOpen(false);
+                        startConversation(selectedProfile.userId?._id);
+                      }}
+                      className="px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded-xl text-sm font-medium transition-colors"
+                    >
+                      Message
+                    </button>
+                    <Link 
+                      to={`/portfolio/${selectedProfile.userId?.rollNumber}`}
+                      className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors"
+                    >
+                      View Full Portfolio <ExternalLink size={14} />
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </DashboardLayout>
   );
 }
