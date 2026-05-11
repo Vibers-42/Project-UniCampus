@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save, GitBranch, Book, MessageSquare, Globe, Code2, Plus, Trash2, FileText, Upload, Briefcase, Award, FolderGit2 } from 'lucide-react';
+import { ArrowLeft, Save, GitBranch, Book, MessageSquare, Globe, Code2, Plus, Trash2, FileText, Upload, Briefcase, Award, FolderGit2, X } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import api from '../../config/api';
 import { uploadImage } from '../../utils/upload';
@@ -256,9 +256,14 @@ export default function EditPortfolioPage() {
                       <input type="file" accept="application/pdf,image/*" className="hidden" onChange={handleResumeUpload} disabled={resumeUploading} />
                     </label>
                     {resumeUrl && (
-                      <a href={resumeUrl} target="_blank" rel="noreferrer" className="text-primary-400 hover:underline text-sm font-medium">
-                        View Current
-                      </a>
+                      <div className="flex items-center gap-1.5 bg-dark-900 border border-dark-800 px-3 py-2 rounded-xl">
+                        <a href={resumeUrl} target="_blank" rel="noreferrer" className="text-primary-400 hover:underline text-sm font-medium whitespace-nowrap">
+                          View
+                        </a>
+                        <button type="button" onClick={() => setResumeUrl('')} className="text-dark-400 hover:text-red-400 p-1 rounded-md transition-colors" title="Remove Resume">
+                          <X size={14} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

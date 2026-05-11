@@ -26,7 +26,7 @@ export default function PortfolioSidebar() {
   if (isLoading) {
     return (
       <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:flex flex-col overflow-y-auto">
-        <div className="p-6 h-full mt-16 animate-pulse">
+        <div className="p-6 h-full animate-pulse">
           <div className="h-32 bg-dark-900 rounded-2xl mb-6"></div>
           <div className="h-64 bg-dark-900 rounded-2xl"></div>
         </div>
@@ -73,7 +73,7 @@ export default function PortfolioSidebar() {
 
   return (
     <aside className="w-80 fixed right-0 top-0 bottom-0 bg-dark-950 border-l border-dark-800 hidden xl:flex flex-col h-screen overflow-y-auto hide-scrollbar">
-      <div className="p-6 space-y-6 mt-16">
+      <div className="p-6 space-y-6">
         
         {/* Completion Progress Widget */}
         <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800 shadow-lg relative overflow-hidden">

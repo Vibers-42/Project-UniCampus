@@ -18,7 +18,7 @@ const checkValidation = (req) => {
  * Get current user's portfolio
  */
 exports.getMyPortfolio = catchAsync(async (req, res) => {
-  const portfolio = await portfolioService.getPortfolioByUserId(req.user._id);
+  const portfolio = await portfolioService.getPortfolioByUserId(req.user.id);
 
   res.status(200).json({
     status: 'success',
@@ -44,7 +44,7 @@ exports.getPortfolioByRollNumber = catchAsync(async (req, res) => {
  */
 exports.updatePortfolio = catchAsync(async (req, res) => {
   checkValidation(req);
-  const portfolio = await portfolioService.updatePortfolio(req.user._id, req.body);
+  const portfolio = await portfolioService.updatePortfolio(req.user.id, req.body);
 
   res.status(200).json({
     status: 'success',
@@ -57,7 +57,7 @@ exports.updatePortfolio = catchAsync(async (req, res) => {
  */
 exports.addProject = catchAsync(async (req, res) => {
   checkValidation(req);
-  const portfolio = await portfolioService.addProject(req.user._id, req.body);
+  const portfolio = await portfolioService.addProject(req.user.id, req.body);
 
   res.status(201).json({
     status: 'success',
@@ -70,7 +70,7 @@ exports.addProject = catchAsync(async (req, res) => {
  */
 exports.removeProject = catchAsync(async (req, res) => {
   checkValidation(req);
-  const portfolio = await portfolioService.removeProject(req.user._id, req.params.id);
+  const portfolio = await portfolioService.removeProject(req.user.id, req.params.id);
 
   res.status(200).json({
     status: 'success',
@@ -83,7 +83,7 @@ exports.removeProject = catchAsync(async (req, res) => {
  */
 exports.addExperience = catchAsync(async (req, res) => {
   checkValidation(req);
-  const portfolio = await portfolioService.addExperience(req.user._id, req.body);
+  const portfolio = await portfolioService.addExperience(req.user.id, req.body);
 
   res.status(201).json({
     status: 'success',
@@ -96,7 +96,7 @@ exports.addExperience = catchAsync(async (req, res) => {
  */
 exports.removeExperience = catchAsync(async (req, res) => {
   checkValidation(req);
-  const portfolio = await portfolioService.removeExperience(req.user._id, req.params.id);
+  const portfolio = await portfolioService.removeExperience(req.user.id, req.params.id);
 
   res.status(200).json({
     status: 'success',
@@ -109,7 +109,7 @@ exports.removeExperience = catchAsync(async (req, res) => {
  */
 exports.addAchievement = catchAsync(async (req, res) => {
   checkValidation(req);
-  const portfolio = await portfolioService.addAchievement(req.user._id, req.body);
+  const portfolio = await portfolioService.addAchievement(req.user.id, req.body);
 
   res.status(201).json({
     status: 'success',
@@ -122,7 +122,7 @@ exports.addAchievement = catchAsync(async (req, res) => {
  */
 exports.removeAchievement = catchAsync(async (req, res) => {
   checkValidation(req);
-  const portfolio = await portfolioService.removeAchievement(req.user._id, req.params.id);
+  const portfolio = await portfolioService.removeAchievement(req.user.id, req.params.id);
 
   res.status(200).json({
     status: 'success',
