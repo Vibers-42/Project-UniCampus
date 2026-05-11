@@ -118,11 +118,11 @@ export default function PortfolioPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Resume Section */}
-          <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
-              <FileText size={20} className="text-primary-500" /> Resume Document
-            </h3>
-            {portfolio.resumeUrl ? (
+          {portfolio.resumeUrl && (
+            <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
+                <FileText size={20} className="text-primary-500" /> Resume Document
+              </h3>
               <div className="flex items-center justify-between bg-dark-950 border border-dark-800 p-4 rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary-500/10 text-primary-400 rounded-lg"><FileText size={20} /></div>
@@ -135,21 +135,15 @@ export default function PortfolioPage() {
                   View PDF
                 </a>
               </div>
-            ) : (
-              <div className="bg-dark-950 border border-dark-800 border-dashed p-6 rounded-xl text-center">
-                <p className="text-dark-500 text-sm mb-3">No Resume Uploaded</p>
-                {isOwnProfile && <Link to="/portfolio/edit" className="text-sm text-primary-400 font-medium hover:underline">Upload Resume</Link>}
-              </div>
-            )}
-          </section>
+            </section>
+          )}
 
           {/* Professional Links */}
-          <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
-              <Globe size={20} className="text-primary-500" /> Professional Links
-            </h3>
-            
-            {Object.keys(links).some(k => links[k]) ? (
+          {Object.keys(links).some(k => links[k]) && (
+            <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
+                <Globe size={20} className="text-primary-500" /> Professional Links
+              </h3>
               <div className="grid grid-cols-2 gap-3">
                 {links.github && <a href={links.github} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-dark-200 hover:text-white bg-dark-950 border border-dark-800 p-2.5 rounded-lg transition-colors"><GitBranch size={16} className="text-dark-400" /> GitHub</a>}
                 {links.linkedin && <a href={links.linkedin} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-dark-200 hover:text-white bg-dark-950 border border-dark-800 p-2.5 rounded-lg transition-colors"><Book size={16} className="text-[#0a66c2]" /> LinkedIn</a>}
@@ -160,21 +154,16 @@ export default function PortfolioPage() {
                 {links.codeforces && <a href={links.codeforces} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-dark-200 hover:text-white bg-dark-950 border border-dark-800 p-2.5 rounded-lg transition-colors"><Code2 size={16} className="text-blue-500" /> Codeforces</a>}
                 {links.geeksforgeeks && <a href={links.geeksforgeeks} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-dark-200 hover:text-white bg-dark-950 border border-dark-800 p-2.5 rounded-lg transition-colors"><Code2 size={16} className="text-green-600" /> GeeksForGeeks</a>}
               </div>
-            ) : (
-              <div className="bg-dark-950 border border-dark-800 border-dashed p-6 rounded-xl text-center">
-                <p className="text-dark-500 text-sm mb-3">Add Professional Links</p>
-                {isOwnProfile && <Link to="/portfolio/edit" className="text-sm text-primary-400 font-medium hover:underline">Add Links</Link>}
-              </div>
-            )}
-          </section>
+            </section>
+          )}
         </div>
 
         {/* Skills Section */}
-        <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-dark-100 mb-6 flex items-center gap-2">
-            <Code2 size={20} className="text-primary-500" /> Technical Skills & Tools
-          </h3>
-          {(portfolio.skills?.length > 0 || portfolio.techStack?.length > 0 || portfolio.tools?.length > 0 || portfolio.domains?.length > 0) ? (
+        {(portfolio.skills?.length > 0 || portfolio.techStack?.length > 0 || portfolio.tools?.length > 0 || portfolio.domains?.length > 0) && (
+          <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-dark-100 mb-6 flex items-center gap-2">
+              <Code2 size={20} className="text-primary-500" /> Technical Skills & Tools
+            </h3>
             <div className="space-y-6">
               {portfolio.skills?.length > 0 && (
                 <div>
@@ -217,20 +206,15 @@ export default function PortfolioPage() {
                 </div>
               )}
             </div>
-          ) : (
-            <div className="bg-dark-950 border border-dark-800 border-dashed p-6 rounded-xl text-center">
-              <p className="text-dark-500 text-sm mb-3">Add Skills</p>
-              {isOwnProfile && <Link to="/portfolio/edit" className="text-sm text-primary-400 font-medium hover:underline">Add Skills</Link>}
-            </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Experience Section */}
-        <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
-            <Briefcase size={20} className="text-primary-500" /> Experience
-          </h3>
-          {portfolio.experience?.length > 0 ? (
+        {portfolio.experience?.length > 0 && (
+          <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
+              <Briefcase size={20} className="text-primary-500" /> Experience
+            </h3>
             <div className="space-y-4">
               {portfolio.experience.map(exp => (
                 <div key={exp._id} className="p-4 bg-dark-950 border border-dark-800 rounded-xl">
@@ -245,20 +229,15 @@ export default function PortfolioPage() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="bg-dark-950 border border-dark-800 border-dashed p-6 rounded-xl text-center">
-              <p className="text-dark-500 text-sm mb-3">To Be Filled</p>
-              {isOwnProfile && <Link to="/portfolio/edit" className="text-sm text-primary-400 font-medium hover:underline">Add Experience</Link>}
-            </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Projects Section */}
-        <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
-            <FolderGit2 size={20} className="text-primary-500" /> Projects
-          </h3>
-          {portfolio.projects?.length > 0 ? (
+        {portfolio.projects?.length > 0 && (
+          <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
+              <FolderGit2 size={20} className="text-primary-500" /> Projects
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {portfolio.projects.map(proj => (
                 <div key={proj._id} className="bg-dark-950 border border-dark-800 rounded-xl p-5 flex flex-col">
@@ -293,20 +272,15 @@ export default function PortfolioPage() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="bg-dark-950 border border-dark-800 border-dashed p-6 rounded-xl text-center">
-              <p className="text-dark-500 text-sm mb-3">To Be Filled</p>
-              {isOwnProfile && <Link to="/portfolio/edit" className="text-sm text-primary-400 font-medium hover:underline">Add Projects</Link>}
-            </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Achievements Section */}
-        <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
-            <Award size={20} className="text-primary-500" /> Achievements & Certifications
-          </h3>
-          {portfolio.achievements?.length > 0 ? (
+        {portfolio.achievements?.length > 0 && (
+          <section className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-dark-100 mb-4 flex items-center gap-2">
+              <Award size={20} className="text-primary-500" /> Achievements & Certifications
+            </h3>
             <div className="space-y-4">
               {portfolio.achievements.map(ach => (
                 <div key={ach._id} className="p-4 bg-dark-950 border border-dark-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -327,13 +301,8 @@ export default function PortfolioPage() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="bg-dark-950 border border-dark-800 border-dashed p-6 rounded-xl text-center">
-              <p className="text-dark-500 text-sm mb-3">To Be Filled</p>
-              {isOwnProfile && <Link to="/portfolio/edit" className="text-sm text-primary-400 font-medium hover:underline">Add Achievements</Link>}
-            </div>
-          )}
-        </section>
+          </section>
+        )}
 
       </div>
     </DashboardLayout>
