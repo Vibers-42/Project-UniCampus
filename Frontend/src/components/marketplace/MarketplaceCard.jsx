@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
+import { MapPin, Tag, Edit3 } from 'lucide-react';
 
-export default function MarketplaceCard({ item }) {
+export default function MarketplaceCard({ item, isOwner = false, onEdit }) {
   return (
     <div className="auth-card p-0 overflow-hidden flex flex-col h-full group border-dark-800 hover:border-primary-500/30 transition-all duration-300">
       {/* Image Container */}
@@ -19,13 +20,30 @@ export default function MarketplaceCard({ item }) {
           </div>
         )}
         <div className="absolute top-3 right-3 flex flex-col gap-2">
-          <span className="bg-dark-950/80 backdrop-blur-md text-primary-400 text-[10px] font-bold px-2 py-1 rounded-md border border-dark-800 uppercase tracking-tighter">
+          <span className="bg-dark-950/80 backdrop-blur-md text-primary-400 text-[10px] font-bold px-2 py-1 rounded-md border border-dark-800 uppercase tracking-tighter shadow-lg text-center">
             {item.category}
           </span>
-          <span className="bg-primary-500 text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg shadow-primary-500/20">
+          <span className="bg-primary-500 text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg shadow-primary-500/20 text-center">
             ₹{item.price}
           </span>
         </div>
+        {item.negotiable && (
+          <div className="absolute bottom-3 left-3">
+            <span className="bg-green-500/90 backdrop-blur-sm text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest shadow-lg flex items-center gap-1">
+              <Tag size={8} /> Negotiable
+            </span>
+          </div>
+        )}
+        {/* Owner Edit Button */}
+        {isOwner && onEdit && (
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(); }}
+            className="absolute top-3 left-3 p-2 bg-dark-950/80 backdrop-blur-md border border-dark-800 rounded-lg text-primary-400 hover:bg-primary-500 hover:text-white transition-all shadow-lg"
+            title="Edit listing"
+          >
+            <Edit3 size={14} />
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -34,6 +52,22 @@ export default function MarketplaceCard({ item }) {
           <h3 className="text-dark-100 font-bold text-base leading-snug group-hover:text-primary-300 transition-colors line-clamp-1 mb-1">
             {item.title}
           </h3>
+          
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+              item.condition === 'New' ? 'text-green-400 border-green-500/20 bg-green-500/5' :
+              item.condition === 'Like New' ? 'text-blue-400 border-blue-500/20 bg-blue-500/5' :
+              'text-orange-400 border-orange-500/20 bg-orange-500/5'
+            } uppercase tracking-wider`}>
+              {item.condition}
+            </span>
+            {item.location && (
+              <span className="text-[10px] text-dark-400 flex items-center gap-0.5 truncate">
+                <MapPin size={10} /> {item.location}
+              </span>
+            )}
+          </div>
+
           <p className="text-dark-400 text-xs line-clamp-2 leading-relaxed mb-4">
             {item.description}
           </p>
@@ -61,7 +95,7 @@ export default function MarketplaceCard({ item }) {
             to={`/marketplace/${item._id}`}
             className="text-[10px] font-bold text-primary-400 hover:text-primary-300 transition-colors flex items-center gap-1 uppercase tracking-wider"
           >
-            View Details
+            Details
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
