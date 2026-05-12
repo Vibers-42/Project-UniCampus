@@ -10,6 +10,10 @@ router.use(protect);
 
 router.post('/', validateCreatePost, validate, ctrl.createPost);
 router.get('/', validateQuery, validate, ctrl.getFeed);
+
+// Recommendations — MUST be before /:id to avoid matching 'recommendations' as an id
+router.get('/recommendations', ctrl.getRecommendations);
+
 router.get('/:id', validateId, validate, ctrl.getPost);
 router.post('/:id/like', validateId, validate, ctrl.likePost);
 router.post('/:id/comments', validateId, validateCreateComment, validate, ctrl.addComment);

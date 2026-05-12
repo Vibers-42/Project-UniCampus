@@ -62,9 +62,7 @@ export function useAIChat() {
       const payload = { message };
       if (conversationId) payload.conversationId = conversationId;
 
-      console.log('[useAIChat] POST /ai-chatbot/ask', payload);
       const res = await api.post('/ai-chatbot/ask', payload);
-      console.log('[useAIChat] Response:', res.data);
 
       const { conversationId: returnedId, reply } = res.data.data;
 

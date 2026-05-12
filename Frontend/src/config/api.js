@@ -26,7 +26,7 @@ import axios from 'axios';
 import { auth } from './firebaseClient';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-console.log('[API] Initializing Axios with baseURL:', API_URL);
+// API URL configured via environment variable
 
 const api = axios.create({
   baseURL: API_URL,

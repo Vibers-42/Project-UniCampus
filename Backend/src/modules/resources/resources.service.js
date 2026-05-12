@@ -75,7 +75,8 @@ const getAll = async (filters = {}) => {
       .sort(sortOpt)
       .skip(skip)
       .limit(limit)
-      .populate('uploadedBy', 'fullName avatar department year'),
+      .populate('uploadedBy', 'fullName avatar department year')
+      .lean(),
     Resource.countDocuments(query),
   ]);
 

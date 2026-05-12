@@ -1,5 +1,7 @@
 const MarketplaceItem = require('./marketplace.model');
 const AppError = require('../../shared/utils/AppError');
+const uploadService = require('../../shared/uploadService');
+const logger = require('../../shared/utils/logger');
 
 /**
  * Get all marketplace items with filtering and search
@@ -25,7 +27,8 @@ const getAll = async (queryParams) => {
     .populate('sellerId', 'fullName avatar rollNumber')
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(limit);
+    .limit(limit)
+    .lean();
 
   const total = await MarketplaceItem.countDocuments(query);
 
@@ -71,6 +74,26 @@ const remove = async (id, userId, userRole) => {
   // Only owner or admin can delete
   if (item.sellerId.toString() !== userId.toString() && userRole !== 'admin') {
     throw new AppError('Not authorized to delete this listing', 403);
+  }
+
+  // Clean up Cloudinary assets before soft-deleting
+  try {
+    if (item.imagePublicId) {
+      await uploadService.deleteFile(item.imagePublicId);
+    } else if (item.image) {
+      const publicId = uploadService.extractPublicId(item.image);
+      if (publicId) await uploadService.deleteFile(publicId);
+    }
+    // Clean up any attachments
+    if (item.attachments && item.attachments.length > 0) {
+      for (const att of item.attachments) {
+        const attId = att.publicId || uploadService.extractPublicId(att.url);
+        if (attId) await uploadService.deleteFile(attId);
+      }
+    }
+  } catch (cleanupErr) {
+    logger.error(`Cloudinary cleanup failed for marketplace item ${id}: ${cleanupErr.message}`);
+    // Continue with delete — don't block on cleanup failure
   }
 
   item.isDeleted = true;

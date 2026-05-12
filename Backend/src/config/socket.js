@@ -12,17 +12,45 @@ const initSocket = (server) => {
     }
   });
 
+  // ── Socket Authentication Middleware ──
+  // Verify Firebase token before allowing connection.
+  // Unauthenticated sockets are rejected immediately.
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token;
+      if (!token) {
+        return next(new Error('Authentication required'));
+      }
+
+      const { verifyToken } = require('./firebase');
+      const decoded = await verifyToken(token);
+
+      if (!decoded.email_verified) {
+        return next(new Error('Email not verified'));
+      }
+
+      // Attach user identity to socket for downstream use
+      socket.userId = decoded.uid;
+      socket.userEmail = decoded.email;
+      next();
+    } catch (err) {
+      logger.error(`Socket auth failed: ${err.message}`);
+      next(new Error('Invalid authentication token'));
+    }
+  });
+
   io.on('connection', (socket) => {
-    logger.info(`New client connected: ${socket.id}`);
+    logger.info(`Client connected: ${socket.id} (user: ${socket.userEmail})`);
+
+    // Register error handler on every socket instance
+    socket.on('error', (err) => {
+      logger.error(`Socket error [${socket.id}]: ${err.message}`);
+    });
 
     // Join Group Room
     socket.on('joinGroupRoom', async (groupId) => {
-      // In production, verify user is a member here using socket.request.user or similar
       socket.join(`group:${groupId}`);
       logger.debug(`Socket ${socket.id} joined group room: ${groupId}`);
-      
-      // Emit userOnline to room (dummy data for user since we don't have auth on socket yet)
-      // socket.to(`group:${groupId}`).emit('userOnline', { userId: socket.userId, name: socket.userName });
     });
 
     // Leave Group Room
@@ -54,7 +82,7 @@ const initSocket = (server) => {
     socket.on('typing', (groupId, threadId) => {
       const room = threadId ? `thread:${threadId}` : `group:${groupId}`;
       socket.to(room).emit('userTyping', { 
-        userId: socket.userId, // Assigned by middleware if implemented
+        userId: socket.userId,
         name: socket.userName,
         threadId 
       });

@@ -32,7 +32,7 @@ export const getMessages = (id, params) => api.get(`${BASE}/${id}/messages`, { p
 export const sendMessage = (id, data) => {
   // Check if data is FormData (for attachments)
   const isFormData = data instanceof FormData;
-  return api.post(`${BASE}/${id}/message`, data, {
+  return api.post(`${BASE}/${id}/messages`, data, {
     headers: {
       'Content-Type': isFormData ? 'multipart/form-data' : 'application/json'
     }
