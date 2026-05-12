@@ -4,6 +4,7 @@
 
 const TeamProject = require('./teammates.model');
 const AppError = require('../../shared/utils/AppError');
+const logger = require('../../shared/utils/logger');
 
 /**
  * Create a new team project listing
@@ -158,7 +159,7 @@ exports.deleteProject = async (projectId, userId) => {
       if (publicId) {
         await uploadService.deleteFile(publicId).catch(err => {
           // Log but don't fail deletion if cloudinary fails
-          console.error(`Failed to delete Cloudinary file ${publicId}:`, err);
+          logger.error(`Failed to delete Cloudinary file ${publicId}:`, err);
         });
       }
     }

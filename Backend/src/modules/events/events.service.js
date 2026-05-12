@@ -16,6 +16,8 @@
 const Event = require('./events.model');
 const AppError = require('../../shared/utils/AppError');
 const { parsePagination, buildPaginationResult } = require('../../shared/utils/pagination');
+const uploadService = require('../../shared/uploadService');
+const logger = require('../../shared/utils/logger');
 
 /**
  * Create a new event.
@@ -74,7 +76,8 @@ const getAll = async (filters = {}) => {
       .sort(sortOrder)
       .skip(skip)
       .limit(limit)
-      .populate('organizerId', 'fullName email avatar role'),
+      .populate('organizerId', 'fullName email avatar role')
+      .lean(),
     Event.countDocuments(query),
   ]);
 
@@ -149,6 +152,18 @@ const remove = async (id, userId) => {
     throw new AppError('Only the organizer can delete this event', 403);
   }
 
+  // Clean up Cloudinary banner before deleting
+  try {
+    if (event.bannerPublicId) {
+      await uploadService.deleteFile(event.bannerPublicId);
+    } else if (event.bannerUrl) {
+      const publicId = uploadService.extractPublicId(event.bannerUrl);
+      if (publicId) await uploadService.deleteFile(publicId);
+    }
+  } catch (cleanupErr) {
+    logger.error(`Cloudinary banner cleanup failed for event ${id}: ${cleanupErr.message}`);
+  }
+
   await event.deleteOne();
   
   return { message: 'Event deleted successfully.' };
@@ -163,7 +178,8 @@ const remove = async (id, userId) => {
  */
 const getSidebarData = async (userId) => {
   const now = new Date();
-  const userObjectId = new (require('mongoose').Types.ObjectId)(userId);
+  const mongoose = require('mongoose');
+  const userObjectId = new mongoose.Types.ObjectId(userId);
 
   const [
     userEventsCount,

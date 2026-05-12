@@ -26,6 +26,7 @@ const routes = require('./routes');
 const notFoundHandler = require('./middleware/notFound.middleware');
 const errorHandler = require('./middleware/error.middleware');
 const { generalLimiter } = require('./middleware/rateLimit.middleware');
+const logger = require('./shared/utils/logger');
 
 const app = express();
 
@@ -101,7 +102,7 @@ if (env.NODE_ENV === 'development') {
 
     // Warn at 80% of the limit (500 * 0.8 = 400)
     if (count === 400) {
-      console.warn(`[RATE-LIMIT] ⚠️ IP ${ip} is at 80% of rate limit (${count}/500). Recent: ${req.method} ${req.path}`);
+      logger.warn(`[RATE-LIMIT] IP ${ip} is at 80% of rate limit (${count}/500). Recent: ${req.method} ${req.path}`);
     }
     next();
   });

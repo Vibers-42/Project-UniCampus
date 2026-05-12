@@ -32,7 +32,8 @@ const getAll = async (filters = {}) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('postedBy', 'fullName avatar role badges'),
+      .populate('postedBy', 'fullName avatar role badges')
+      .lean(),
     Opportunity.countDocuments(query)
   ]);
   

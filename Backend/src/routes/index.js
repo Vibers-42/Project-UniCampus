@@ -66,7 +66,11 @@ router.use('/teammates', teammatesRoutes);
 const marketplaceRoutes = require('../modules/marketplace/marketplace.routes');
 router.use('/marketplace', marketplaceRoutes);
 
-const studyGroupsRoutes = require('../modules/studyGroups/studyGroups.routes');
+// Study Groups: full implementation from controllers/ (canonical)
+// The module scaffold at modules/studyGroups/ is superseded by the richer
+// controller-based implementation which supports threads, members, pinning,
+// and socket events. Frontend consumes /api/v1/study-groups.
+const studyGroupsRoutes = require('../routes/studygroup.routes');
 router.use('/study-groups', studyGroupsRoutes);
 
 const chatbotRoutes = require('../modules/aiChatbot/aiChatbot.routes');

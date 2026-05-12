@@ -377,7 +377,8 @@ const searchUsers = async (filters = {}) => {
       .select('fullName email department yearOfStudy skills bio avatar availability profileCompletionPercent')
       .sort({ fullName: 1 })
       .skip(skip)
-      .limit(limit),
+      .limit(limit)
+      .lean(),
     User.countDocuments(query),
   ]);
 

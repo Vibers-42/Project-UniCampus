@@ -8,10 +8,15 @@ const validateCreatePost = [
     .isLength({ max: 2000 })
     .withMessage('Content cannot exceed 2000 characters'),
   body('images').optional().isArray(),
-  body('images.*').optional().isString().isURL().withMessage('Images must be valid URLs'),
-  body('tags').optional().isArray(),
-  body('tags.*').optional().isString().trim(),
-  body('type').optional().isIn(['General', 'Resource', 'Discussion', 'Event', 'Marketplace'])
+  body('images.*.url').optional().isString().isURL().withMessage('Image URL must be valid'),
+  body('images.*.publicId').optional().isString(),
+  body('images.*.fileType').optional().isString(),
+  body('tags').optional().isArray({ max: 10 }).withMessage('Maximum 10 tags allowed'),
+  body('tags.*').optional().isString().trim().isLength({ max: 50 }).withMessage('Tag cannot exceed 50 characters'),
+  body('type').optional().isIn(['General', 'Resource', 'Discussion', 'Event', 'Marketplace']),
+  // Content-targeting fields (optional — auto-populated from author profile if omitted)
+  body('targetDepartment').optional().isString().trim().isLength({ max: 100 }),
+  body('targetYearOfStudy').optional().isInt({ min: 1, max: 4 }),
 ];
 
 const validateCreateComment = [

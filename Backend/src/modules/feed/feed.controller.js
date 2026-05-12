@@ -32,11 +32,17 @@ const getComments = catchAsync(async (req, res) => {
   sendSuccess(res, result, 'Comments fetched successfully');
 });
 
+const getRecommendations = catchAsync(async (req, res) => {
+  const result = await svc.getRecommendations(req.user._id);
+  sendSuccess(res, result, 'Recommendations fetched successfully');
+});
+
 module.exports = {
   createPost,
   getFeed,
   getPost,
   likePost,
   addComment,
-  getComments
+  getComments,
+  getRecommendations
 };

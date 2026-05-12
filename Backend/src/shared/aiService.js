@@ -19,8 +19,8 @@ const { env } = require('../config');
 
 // ── Startup diagnostic ──────────────────────────────────────
 const _key = env.GROQ_API_KEY || '';
-console.log('[aiService] Provider: Groq');
-console.log('[aiService] GROQ_API_KEY:', _key ? `${_key.slice(0, 10)}... (loaded)` : 'MISSING!');
+logger.debug('[aiService] Provider: Groq');
+logger.debug('[aiService] GROQ_API_KEY:', _key ? `${_key.slice(0, 10)}... (loaded)` : 'MISSING!');
 
 // ── Singleton Groq client ───────────────────────────────────
 // Instantiated once on module load so the connection is reused.
@@ -55,7 +55,7 @@ const askAI = async (systemPrompt, userMessage, history = []) => {
   } catch (err) {
     const msg = err?.message || '';
     logger.error('[aiService] Groq error:', msg);
-    console.error('[aiService] Full Groq error:', err);
+    logger.error('[aiService] Full Groq error:', err);
 
     if (msg.includes('429') || msg.includes('rate') || msg.includes('quota')) {
       return {
@@ -84,7 +84,7 @@ const askAI = async (systemPrompt, userMessage, history = []) => {
  * last entry — we exclude it and send it as the final user turn instead.
  */
 const callGroq = async (systemPrompt, userMessage, history) => {
-  console.log('[callGroq] Building messages...');
+  logger.debug('[callGroq] Building messages...');
 
   // Exclude the last history entry (the current user msg — just saved to DB).
   // It becomes the final 'user' turn we explicitly pass.
@@ -102,7 +102,7 @@ const callGroq = async (systemPrompt, userMessage, history) => {
     { role: 'user', content: userMessage },
   ];
 
-  console.log('[callGroq] Sending to Groq, total turns:', messages.length);
+  logger.debug('[callGroq] Sending to Groq, total turns:', messages.length);
 
   const groq = getGroq();
   const completion = await groq.chat.completions.create({
@@ -110,13 +110,13 @@ const callGroq = async (systemPrompt, userMessage, history) => {
     messages,
     temperature: 0.7,
     max_tokens: 1024,
-  });
+  }, { timeout: 30000 }); // 30s timeout — prevents indefinite hangs
 
   const reply = completion.choices[0]?.message?.content;
 
   if (!reply) throw new Error('Groq returned empty response');
 
-  console.log('[callGroq] Success — reply length:', reply.length);
+  logger.debug('[callGroq] Success — reply length:', reply.length);
   return reply;
 };
 

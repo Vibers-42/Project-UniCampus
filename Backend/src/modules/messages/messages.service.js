@@ -13,6 +13,7 @@ const Conversation = require('./conversation.model');
 const Message = require('./message.model');
 const User = require('../users/users.model');
 const AppError = require('../../shared/utils/AppError');
+const logger = require('../../shared/utils/logger');
 
 /**
  * Search students by roll number.
@@ -152,7 +153,7 @@ const sendMessage = async (conversationId, senderId, content) => {
     io.to(`user:${receiverId}`).emit('newMessage', message);
     io.to(`user:${senderId}`).emit('newMessage', message);
   } catch (err) {
-    console.error('Socket error in sendMessage:', err);
+    logger.error('Socket error in sendMessage:', err);
   }
 
   return message;

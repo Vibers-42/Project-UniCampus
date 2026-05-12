@@ -24,7 +24,7 @@ const logger = require('./shared/utils/logger');
 const cron = require('node-cron');
 const { cleanupUnverifiedUsers } = require('./utils/cleanupUnverifiedUsers');
 
-const groupRoutes = require('./routes/studygroup.routes');
+// Study group routes now consolidated in routes/index.js → /api/v1/study-groups
 const http = require('http');
 const { initSocket } = require('./config/socket');
 
@@ -42,7 +42,7 @@ const startServer = async () => {
     const io = initSocket(server);
     app.set('io', io); // Make io accessible in controllers via req.app.get('io')
 
-    app.use('/api/v1/groups', groupRoutes);
+    // Study group routes registered in routes/index.js (no duplicate mount needed)
 
     server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
