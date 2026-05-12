@@ -199,8 +199,8 @@ export default function StudyGroupsPage() {
       ) : groups.length > 0 ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
           {groups.map(g => {
-            const isMember = g.members.some(m => m._id === 'user_001'); // Aryan Patel
-            const isAdmin = g.admin?._id === 'user_001';
+            const isMember = g.members.some(m => m._id === user?._id);
+            const isAdmin = g.admin?._id === user?._id;
             return (
               <GroupCard 
                 key={g._id} 

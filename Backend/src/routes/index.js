@@ -97,7 +97,7 @@ aiAliasRouter.post(
   validate,
   catchAsync(async (req, res) => {
     const { message, subject } = req.body;
-    const result = await aiSvc.ask(req.user.email, message, null, subject);
+    const result = await aiSvc.ask(req.user.id, message, null, subject);
     sendSuccess(res, { reply: result.reply }, 'AI response received');
   })
 );

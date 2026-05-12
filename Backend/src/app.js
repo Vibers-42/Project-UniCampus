@@ -20,6 +20,7 @@
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
 
 const { env } = require('./config');
 const routes = require('./routes');
@@ -36,7 +37,19 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ──────────────────────────────────────────
-// 1. PARSING MIDDLEWARE
+// 1. SECURITY HEADERS
+// ──────────────────────────────────────────
+
+// Helmet sets security-related HTTP headers (XSS, clickjacking, MIME sniffing, etc.)
+// crossOriginResourcePolicy: 'cross-origin' — allows Cloudinary images/PDFs to load
+// contentSecurityPolicy: false — CSP disabled for MVP (React injects inline scripts)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false,
+}));
+
+// ──────────────────────────────────────────
+// 2. PARSING MIDDLEWARE
 // ──────────────────────────────────────────
 
 // Parse incoming JSON payloads (req.body)
@@ -48,6 +61,20 @@ app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 
 // Parse cookies (available for future use — session tokens, preferences, etc.)
 app.use(cookieParser());
+
+// ──────────────────────────────────────────
+// 3. NOSQL INJECTION PROTECTION
+// ──────────────────────────────────────────
+//
+// EXPRESS 5 COMPATIBILITY:
+//   - express-mongo-sanitize and hpp are NOT compatible with Express 5
+//     (req.query is a read-only getter in Express 5).
+//   - NoSQL injection is prevented by:
+//     1. Mongoose strict schemas — reject operators where strings expected
+//     2. express-validator in every route — type-checks all inputs
+//     3. Mongoose sanitizeFilter option — strips query operators globally
+//   - HTTP Parameter Pollution is a non-issue in Express 5 because
+//     req.query is immutable (read-only getter).
 
 // ──────────────────────────────────────────
 // 2. SECURITY MIDDLEWARE
@@ -108,17 +135,8 @@ if (env.NODE_ENV === 'development') {
   });
 }
 
-// SECURITY SUGGESTIONS (add these packages when ready for production):
-//
-// helmet     — Sets security-related HTTP headers (XSS, clickjacking, etc.)
-//              Usage: app.use(require('helmet')());
-//
-// express-mongo-sanitize — Prevents NoSQL injection attacks
-//              Usage: app.use(require('express-mongo-sanitize')());
-//
-// hpp        — Protects against HTTP parameter pollution
-//              Usage: app.use(require('hpp')());
-
+// ──────────────────────────────────────────
+// 5. CORS CONFIGURATION
 // ──────────────────────────────────────────
 // 3. HEALTH CHECK (no auth required)
 // ──────────────────────────────────────────

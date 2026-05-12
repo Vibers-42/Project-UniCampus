@@ -18,6 +18,11 @@
 // This must be the FIRST line so all modules see the env vars.
 require('dotenv').config();
 
+// ── Step 0.5: Validate environment ──
+// Exits immediately with clear error messages if critical vars are missing.
+const validateEnv = require('./config/validateEnv');
+validateEnv();
+
 const app = require('./app');
 const { env, connectDB } = require('./config');
 const logger = require('./shared/utils/logger');
