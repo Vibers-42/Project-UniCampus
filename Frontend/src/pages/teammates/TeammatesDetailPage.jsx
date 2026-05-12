@@ -337,7 +337,7 @@ export default function TeammatesDetailPage() {
                       
                       {project.status === 'open' && (
                         <Link
-                          to={`/messages?user=${project.creatorId?.rollNumber}`}
+                          to={`/messages?userId=${project.creatorId?._id}`}
                           className="w-full py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
                         >
                           <Send size={18} />

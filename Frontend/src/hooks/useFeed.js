@@ -6,10 +6,12 @@ export function useFeed() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchFeed = useCallback(async (type = 'All', page = 1) => {
+  const fetchFeed = useCallback(async (type = 'All', page = 1, sort = '') => {
     setLoading(true);
     try {
-      const res = await api.get(`/feed?type=${type}&page=${page}`);
+      let url = `/feed?type=${type}&page=${page}`;
+      if (sort) url += `&sort=${sort}`;
+      const res = await api.get(url);
       setPosts(res.data?.data?.items ?? []);
       setError(null);
     } catch (err) {

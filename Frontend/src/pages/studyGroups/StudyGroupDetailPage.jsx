@@ -114,7 +114,11 @@ export default function StudyGroupDetailPage() {
     );
   }
 
-  const isMember = group?.members?.includes(user?.email);
+  // Members are populated user objects (or ObjectIds) — check _id match
+  const isMember = group?.members?.some(m => {
+    const memberId = typeof m === 'object' ? (m._id || m) : m;
+    return String(memberId) === String(user?._id);
+  });
 
   return (
     <DashboardLayout>
@@ -133,9 +137,9 @@ export default function StudyGroupDetailPage() {
                 </span>
               </div>
               <p className="text-dark-400 text-sm font-medium flex items-center gap-4">
-                <span className="flex items-center gap-1"><Users size={14} className="text-dark-500" /> {group.memberCount} Members</span>
+                <span className="flex items-center gap-1"><Users size={14} className="text-dark-500" /> {group.members?.length || group.memberCount} Members</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-dark-700"></span>
-                <span className="text-dark-500">Created by {group.createdBy}</span>
+                <span className="text-dark-500">Created by {typeof group.createdBy === 'object' ? group.createdBy.fullName : group.createdBy}</span>
               </p>
             </div>
           </div>
@@ -183,12 +187,14 @@ export default function StudyGroupDetailPage() {
               ) : (
                 // eslint-disable-next-line no-unused-vars
                 messages.map((msg, index) => {
-                  const isMe = msg.sender === user?.email;
+                  const senderId = typeof msg.sender === 'object' ? msg.sender._id : msg.sender;
+                  const senderName = typeof msg.sender === 'object' ? msg.sender.fullName : (msg.sender || '').split('@')[0];
+                  const isMe = String(senderId) === String(user?._id);
                   return (
                     <div key={msg._id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                       {!isMe && (
                          <span className="text-[10px] font-black text-primary-400/80 mb-1.5 px-2 uppercase tracking-tighter">
-                           {msg.sender.split('@')[0]}
+                           {senderName}
                          </span>
                       )}
                       <div className={`group relative px-5 py-3 rounded-2xl max-w-[85%] md:max-w-[70%] shadow-lg ${

@@ -38,7 +38,15 @@ function TeammatesSidebar({ user }) {
   });
   const topSkills = Object.entries(trendingTech).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
 
-  const trendingCategories = ['Hackathon', 'Open Source', 'Startup', 'Research'];
+  // Compute trending categories from real project data
+  const catCounts = {};
+  recentProjects.forEach(p => {
+    if (p.category) catCounts[p.category] = (catCounts[p.category] || 0) + 1;
+  });
+  const trendingCategories = Object.entries(catCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([k]) => k.charAt(0).toUpperCase() + k.slice(1));
 
   return (
     <div className="p-6 space-y-6">

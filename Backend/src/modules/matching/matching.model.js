@@ -1,7 +1,7 @@
-/** @file matching.model.js — Teammate Matching Schema (scaffold) */
+/** @file matching.model.js — Teammate Matching Schema */
 const mongoose = require('mongoose');
 const matchSchema = new mongoose.Schema({
-  requestedBy:  { type: String, required: true, index: true }, // email ref
+  requestedBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   title:        { type: String, required: true, trim: true, maxlength: 200 },
   skillsNeeded: { type: [String], default: [] },
   projectType:  { type: String, trim: true, default: '' },
@@ -9,7 +9,7 @@ const matchSchema = new mongoose.Schema({
   deadline:     { type: Date },
   status:       { type: String, enum: ['open', 'closed'], default: 'open', index: true },
   matches:      [{
-    email:  { type: String, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
   }],
 }, { timestamps: true });

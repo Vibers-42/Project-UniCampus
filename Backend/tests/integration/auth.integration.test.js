@@ -35,22 +35,14 @@ const TEST_DECODED_TOKEN = {
   email_verified: true,
 };
 
-describe('Auth Integration', () => {
+describe('Auth API (Integration)', () => {
   beforeAll(async () => {
-    // Connect to test database
-    const testUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/unicampus_test';
-    if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(testUri);
-    }
+    const User = mongoose.model('User');
   });
 
   afterAll(async () => {
-    // Clean up test data
-    if (mongoose.connection.readyState === 1) {
-      const User = mongoose.model('User');
-      await User.deleteMany({ email: TEST_EMAIL });
-      await mongoose.connection.close();
-    }
+    const User = mongoose.model('User');
+    await User.deleteMany({ firebaseUid: TEST_DECODED_TOKEN.uid });
   });
 
   beforeEach(() => {
@@ -100,7 +92,7 @@ describe('Auth Integration', () => {
           department: 'CSE',
           yearOfStudy: 3,
         })
-        .expect(200);
+        .expect(201);
 
       expect(res.body.success).toBe(true);
       expect(res.body.data).toHaveProperty('user');

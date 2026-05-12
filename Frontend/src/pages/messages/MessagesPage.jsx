@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, User as UserIcon, MessageSquare, Search, X, MapPin, BookOpen, Terminal, ExternalLink } from 'lucide-react';
 import { io } from 'socket.io-client';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import api from '../../config/api';
 import { format } from 'date-fns';
+import { getAuth } from 'firebase/auth';
 
 export default function MessagesPage() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // State
   const [conversations, setConversations] = useState([]);
@@ -46,11 +48,28 @@ export default function MessagesPage() {
     }
   };
 
-  // Initial load
+  // Initial load + auto-open from URL params (?userId=xxx)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchConversations();
-  }, []);
+    const init = async () => {
+      await fetchConversations();
+      const targetUserId = searchParams.get('userId');
+      if (targetUserId && user?._id && targetUserId !== user._id) {
+        try {
+          const res = await api.post('/messages/conversations', { receiverId: targetUserId });
+          const conv = res.data.data.conversation;
+          setActiveConversation(conv);
+          // Clean up URL param so refresh doesn't re-trigger
+          setSearchParams({}, { replace: true });
+          // Refresh list to include this conversation
+          fetchConversations();
+        } catch (err) {
+          console.error('[MessagesPage] Auto-open conversation failed:', err);
+        }
+      }
+    };
+    init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id]);
 
   // Fetch messages when conversation changes (compare by ID, not object reference)
   useEffect(() => {
@@ -66,30 +85,51 @@ export default function MessagesPage() {
     if (!user?._id) return;
 
     const url = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '');
-    socketRef.current = io(url, {
-      withCredentials: true,
-    });
 
-    socketRef.current.emit('joinUserRoom', user._id);
+    // Get Firebase token for authenticated socket connection
+    const connectSocket = async () => {
+      let token;
+      try {
+        const fbUser = getAuth().currentUser;
+        if (fbUser) token = await fbUser.getIdToken();
+      } catch { /* proceed without token for graceful degradation */ }
 
-    socketRef.current.on('newMessage', (message) => {
-      // Add message to current conversation if it belongs there
-      setMessages((prev) => {
-        // If we are viewing the conversation this message belongs to
-        if (prev.length > 0 && prev[0].conversationId === message.conversationId) {
-          // avoid duplicates
-          if (prev.find(m => m._id === message._id)) return prev;
-          return [...prev, message];
-        }
-        return prev;
+      socketRef.current = io(url, {
+        withCredentials: true,
+        auth: { token },
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
       });
-      // Refresh sidebar to update last message and sorting
-      fetchConversations();
-    });
+
+      socketRef.current.emit('joinUserRoom', user._id);
+
+      socketRef.current.on('newMessage', (message) => {
+        // Add message to current conversation if it belongs there
+        setMessages((prev) => {
+          // If we are viewing the conversation this message belongs to
+          if (prev.length > 0 && prev[0].conversationId === message.conversationId) {
+            // avoid duplicates
+            if (prev.find(m => m._id === message._id)) return prev;
+            return [...prev, message];
+          }
+          return prev;
+        });
+        // Refresh sidebar to update last message and sorting
+        fetchConversations();
+      });
+
+      socketRef.current.on('connect_error', (err) => {
+        console.warn('[Socket] Connection error:', err.message);
+      });
+    };
+    connectSocket();
 
     return () => {
       if (socketRef.current) {
+        socketRef.current.off('newMessage');
+        socketRef.current.off('connect_error');
         socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
   }, [user?._id]);

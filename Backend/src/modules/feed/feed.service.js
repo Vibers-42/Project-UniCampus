@@ -161,121 +161,150 @@ const getFeed = async (filters = {}, userId) => {
   }
 
   // Time window for personalized feed (keeps candidate pool bounded)
-  if (ctx.hasProfile) {
+  const useTimeWindow = ctx.hasProfile;
+  if (useTimeWindow) {
     const timeWindowStart = new Date();
     timeWindowStart.setDate(timeWindowStart.getDate() - FEED_TIME_WINDOW_DAYS);
     matchQuery.createdAt = { $gte: timeWindowStart };
   }
 
-  // ── Step 3: Build aggregation pipeline ──
-  const pipeline = [];
+  // ── Step 3: Build and run aggregation pipeline ──
+  const runFeedPipeline = async (query) => {
+    const pipeline = [];
 
-  // Stage 1: $match — early filtering, uses indexes
-  pipeline.push({ $match: matchQuery });
+    // Stage 1: $match — early filtering, uses indexes
+    pipeline.push({ $match: query });
 
-  // Stage 2: $addFields — compute relevance score
-  // User profile values are injected as constants (not stored on Post).
-  // If user has no profile, all scores = 0 → sort falls back to createdAt.
-  pipeline.push({
-    $addFields: {
-      _relevanceScore: {
-        $add: [
-          // Department match: +3 if targetDepartment matches user's department
-          ctx.department ? {
-            $cond: {
-              if: { $eq: [{ $toLower: '$targetDepartment' }, ctx.department] },
-              then: SCORE_WEIGHTS.DEPARTMENT_MATCH,
-              else: 0
-            }
-          } : 0,
+    // Stage 2: $addFields — compute relevance score
+    // User profile values are injected as constants (not stored on Post).
+    // If user has no profile, all scores = 0 → sort falls back to createdAt.
+    pipeline.push({
+      $addFields: {
+        _relevanceScore: {
+          $add: [
+            // Department match: +3 if targetDepartment matches user's department
+            ctx.department ? {
+              $cond: {
+                if: { $eq: [{ $toLower: '$targetDepartment' }, ctx.department] },
+                then: SCORE_WEIGHTS.DEPARTMENT_MATCH,
+                else: 0
+              }
+            } : 0,
 
-          // Year match: +1 if targetYearOfStudy matches user's year
-          ctx.yearOfStudy ? {
-            $cond: {
-              if: { $eq: ['$targetYearOfStudy', ctx.yearOfStudy] },
-              then: SCORE_WEIGHTS.YEAR_MATCH,
-              else: 0
-            }
-          } : 0,
+            // Year match: +1 if targetYearOfStudy matches user's year
+            ctx.yearOfStudy ? {
+              $cond: {
+                if: { $eq: ['$targetYearOfStudy', ctx.yearOfStudy] },
+                then: SCORE_WEIGHTS.YEAR_MATCH,
+                else: 0
+              }
+            } : 0,
 
-          // TechStack match: +2 per tag intersecting user.techStack
-          ctx.techStack.length > 0 ? {
-            $multiply: [
-              { $size: { $ifNull: [{ $setIntersection: ['$tags', ctx.techStack] }, []] } },
-              SCORE_WEIGHTS.TECHSTACK_MATCH
-            ]
-          } : 0,
+            // TechStack match: +2 per tag intersecting user.techStack
+            ctx.techStack.length > 0 ? {
+              $multiply: [
+                { $size: { $ifNull: [{ $setIntersection: ['$tags', ctx.techStack] }, []] } },
+                SCORE_WEIGHTS.TECHSTACK_MATCH
+              ]
+            } : 0,
 
-          // Skill match: +2 per tag intersecting user.skills
-          ctx.skills.length > 0 ? {
-            $multiply: [
-              { $size: { $ifNull: [{ $setIntersection: ['$tags', ctx.skills] }, []] } },
-              SCORE_WEIGHTS.SKILL_MATCH
-            ]
-          } : 0,
+            // Skill match: +2 per tag intersecting user.skills
+            ctx.skills.length > 0 ? {
+              $multiply: [
+                { $size: { $ifNull: [{ $setIntersection: ['$tags', ctx.skills] }, []] } },
+                SCORE_WEIGHTS.SKILL_MATCH
+              ]
+            } : 0,
 
-          // Interest match: +1 per tag intersecting user.interests
-          ctx.interests.length > 0 ? {
-            $multiply: [
-              { $size: { $ifNull: [{ $setIntersection: ['$tags', ctx.interests] }, []] } },
-              SCORE_WEIGHTS.INTEREST_MATCH
-            ]
-          } : 0,
+            // Interest match: +1 per tag intersecting user.interests
+            ctx.interests.length > 0 ? {
+              $multiply: [
+                { $size: { $ifNull: [{ $setIntersection: ['$tags', ctx.interests] }, []] } },
+                SCORE_WEIGHTS.INTEREST_MATCH
+              ]
+            } : 0,
 
-          // Trending boost: +1 if total interactions >= threshold
-          {
-            $cond: {
-              if: {
-                $gte: [
-                  { $add: [{ $ifNull: ['$likesCount', 0] }, { $ifNull: ['$commentsCount', 0] }] },
-                  TRENDING_THRESHOLD
-                ]
-              },
-              then: SCORE_WEIGHTS.TRENDING_BOOST,
-              else: 0
-            }
-          },
-        ]
+            // Trending boost: +1 if total interactions >= threshold
+            {
+              $cond: {
+                if: {
+                  $gte: [
+                    { $add: [{ $ifNull: ['$likesCount', 0] }, { $ifNull: ['$commentsCount', 0] }] },
+                    TRENDING_THRESHOLD
+                  ]
+                },
+                then: SCORE_WEIGHTS.TRENDING_BOOST,
+                else: 0
+              }
+            },
+          ]
+        }
       }
+    });
+
+    // Stage 3: $sort — depends on sort mode
+    if (filters.sort === 'trending') {
+      // Trending: sort by total interactions (likes + comments) DESC
+      pipeline.push({
+        $addFields: {
+          _trendingScore: { $add: [{ $ifNull: ['$likesCount', 0] }, { $ifNull: ['$commentsCount', 0] }] }
+        }
+      });
+      pipeline.push({ $sort: { _trendingScore: -1, createdAt: -1 } });
+    } else {
+      // Default: relevance first, recency as tiebreaker
+      pipeline.push({ $sort: { _relevanceScore: -1, createdAt: -1 } });
     }
-  });
 
-  // Stage 3: $sort — relevance first, recency as tiebreaker
-  pipeline.push({ $sort: { _relevanceScore: -1, createdAt: -1 } });
+    // Stage 4: Pagination
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
 
-  // Stage 4: Pagination
-  pipeline.push({ $skip: skip });
-  pipeline.push({ $limit: limit });
+    // Stage 5: $lookup — minimal author population
+    // Only fetches _id, fullName, avatar, department, role, badges
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'authorId',
+        foreignField: '_id',
+        pipeline: [
+          { $project: { fullName: 1, avatar: 1, department: 1, role: 1, badges: 1 } }
+        ],
+        as: 'authorId'
+      }
+    });
 
-  // Stage 5: $lookup — minimal author population
-  // Only fetches _id, fullName, avatar, department, role, badges
-  pipeline.push({
-    $lookup: {
-      from: 'users',
-      localField: 'authorId',
-      foreignField: '_id',
-      pipeline: [
-        { $project: { fullName: 1, avatar: 1, department: 1, role: 1, badges: 1 } }
-      ],
-      as: 'authorId'
-    }
-  });
+    // Unwind author (1-to-1 relationship)
+    pipeline.push({
+      $unwind: { path: '$authorId', preserveNullAndEmptyArrays: true }
+    });
 
-  // Unwind author (1-to-1 relationship)
-  pipeline.push({
-    $unwind: { path: '$authorId', preserveNullAndEmptyArrays: true }
-  });
+    // Stage 6: Remove internal scoring fields from response
+    pipeline.push({ $project: { _relevanceScore: 0, _trendingScore: 0 } });
 
-  // Stage 6: Remove internal scoring field from response
-  pipeline.push({ $project: { _relevanceScore: 0 } });
+    // Execute pipeline + count in parallel
+    const [items, totalCount] = await Promise.all([
+      Post.aggregate(pipeline),
+      Post.countDocuments(query),
+    ]);
 
-  // ── Step 4: Execute pipeline + count in parallel ──
-  const [items, totalCount] = await Promise.all([
-    Post.aggregate(pipeline),
-    Post.countDocuments(matchQuery),
-  ]);
+    return { items, totalCount };
+  };
 
-  // ── Step 5: Attach like status (single batch query) ──
+  // ── Step 4: Execute primary feed ──
+  let { items, totalCount } = await runFeedPipeline(matchQuery);
+
+  // ── Step 5: FALLBACK — if time-windowed query returned empty, widen to global ──
+  // This prevents blank feeds on new deployments or when no recent content exists.
+  if (items.length === 0 && useTimeWindow && page === 1) {
+    const fallbackQuery = { ...matchQuery };
+    delete fallbackQuery.createdAt;
+    const fallback = await runFeedPipeline(fallbackQuery);
+    items = fallback.items;
+    totalCount = fallback.totalCount;
+  }
+
+  // ── Step 6: Attach like status (single batch query) ──
   const postsWithLikes = await _attachLikeStatus(items, userId);
 
   return {

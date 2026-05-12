@@ -14,7 +14,8 @@ import {
   MapPin,
   Building,
   Paperclip,
-  Edit3
+  Edit3,
+  Send
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useMarketplace } from '../../hooks/useMarketplace';
@@ -281,13 +282,13 @@ export default function ItemDetailPage() {
                           </p>
                         </div>
                         
-                        <a 
-                          href={`tel:${item.contactInfo}`}
+                        <Link 
+                          to={`/messages?userId=${item.sellerId?._id}`}
                           className="btn-primary w-full py-5 rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-primary-500/20 flex items-center justify-center gap-3 group"
                         >
-                          <Phone size={18} strokeWidth={3} className="group-hover:rotate-12 transition-transform" />
-                          Contact Seller Now
-                        </a>
+                          <Send size={18} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
+                          Send Message
+                        </Link>
                         
                         <p className="text-[10px] text-dark-500 text-center font-bold uppercase tracking-widest flex items-center justify-center gap-2">
                           <AlertCircle size={10} /> Transactions happen outside this app

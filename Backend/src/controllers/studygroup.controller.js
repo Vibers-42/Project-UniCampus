@@ -105,7 +105,7 @@ exports.getGroupById = catchAsync(async (req, res) => {
 });
 
 exports.joinGroup = catchAsync(async (req, res) => {
-  const { joinCode } = req.body;
+  const { joinCode } = req.body || {};
   const group = await Group.findById(req.params.id);
 
   if (!group) throw new AppError('Group not found', 404);

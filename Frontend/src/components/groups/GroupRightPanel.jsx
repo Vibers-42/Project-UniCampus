@@ -90,7 +90,7 @@ export default function GroupRightPanel() {
         )}
       </div>
 
-      {/* Suggested Topics */}
+      {/* Popular Tags (computed from real group data) */}
       <div style={{ 
         padding: '20px', borderRadius: '20px', 
         background: 'rgb(var(--color-dark-900) / 0.5)',
@@ -98,15 +98,30 @@ export default function GroupRightPanel() {
       }}>
         <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'rgb(var(--color-dark-100))', marginBottom: '12px' }}>Popular Tags</h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {['dsa', 'machine-learning', 'react', 'exams', 'hackathon', 'python'].map(tag => (
-            <span key={tag} style={{ 
-              fontSize: '11px', padding: '4px 10px', borderRadius: '20px', 
-              background: 'rgb(var(--color-dark-800))', color: 'rgb(var(--color-dark-400))',
-              border: '1px solid rgb(var(--color-dark-700))', cursor: 'pointer'
-            }} className="hover:border-primary-500/50 hover:text-primary-400">
-              #{tag}
-            </span>
-          ))}
+          {(() => {
+            // Extract tags from real group data
+            const tagCounts = {};
+            trending.forEach(g => {
+              (g.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+              if (g.category) tagCounts[g.category] = (tagCounts[g.category] || 0) + 1;
+              if (g.subject) tagCounts[g.subject.toLowerCase()] = (tagCounts[g.subject.toLowerCase()] || 0) + 1;
+            });
+            const computedTags = Object.entries(tagCounts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 8)
+              .map(([k]) => k);
+            // Fallback to common campus tags if DB is empty
+            const tags = computedTags.length > 0 ? computedTags : ['dsa', 'machine-learning', 'react', 'exams', 'hackathon', 'python'];
+            return tags.map(tag => (
+              <span key={tag} style={{ 
+                fontSize: '11px', padding: '4px 10px', borderRadius: '20px', 
+                background: 'rgb(var(--color-dark-800))', color: 'rgb(var(--color-dark-400))',
+                border: '1px solid rgb(var(--color-dark-700))', cursor: 'pointer'
+              }} className="hover:border-primary-500/50 hover:text-primary-400">
+                #{tag}
+              </span>
+            ));
+          })()}
         </div>
       </div>
     </div>

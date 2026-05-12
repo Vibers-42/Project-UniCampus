@@ -13,6 +13,7 @@ module.exports = {
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.js'],
   setupFiles: ['<rootDir>/tests/setup/testSetup.js'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup/mongoSetup.js'],
   testPathIgnorePatterns: ['/node_modules/', '/scripts/'],
   coverageDirectory: 'coverage',
   collectCoverageFrom: [

@@ -43,11 +43,6 @@ const TEST_DECODED_TOKEN = {
 
 describe('Upload Validation', () => {
   beforeAll(async () => {
-    const testUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/unicampus_test';
-    if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(testUri);
-    }
-
     // Create test user in DB so auth middleware passes
     const User = mongoose.model('User');
     await User.findOneAndUpdate(
@@ -64,11 +59,8 @@ describe('Upload Validation', () => {
   });
 
   afterAll(async () => {
-    if (mongoose.connection.readyState === 1) {
-      const User = mongoose.model('User');
-      await User.deleteMany({ firebaseUid: TEST_DECODED_TOKEN.uid });
-      await mongoose.connection.close();
-    }
+    const User = mongoose.model('User');
+    await User.deleteMany({ firebaseUid: TEST_DECODED_TOKEN.uid });
   });
 
   beforeEach(() => {

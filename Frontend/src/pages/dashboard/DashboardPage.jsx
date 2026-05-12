@@ -9,12 +9,12 @@ import DiscussionPostModal from '../../components/feed/DiscussionPostModal';
 import { PlusCircle, UploadCloud, MessageSquare, ShoppingBag, CalendarPlus, Users, BookOpen } from 'lucide-react';
 
 const FEED_TABS = [
-  { id: 'For You', backendType: 'All' },
-  { id: 'Trending', backendType: 'All' },
-  { id: 'Campus Activity', backendType: 'All' },
-  { id: 'Teams', backendType: 'Discussion' }, // Mapped for MVP
-  { id: 'Opportunities', backendType: 'General' }, // Mapped for MVP
-  { id: 'Marketplace Nearby', backendType: 'Marketplace' }
+  { id: 'For You', backendType: 'All', sort: '' },
+  { id: 'Trending', backendType: 'All', sort: 'trending' },
+  { id: 'Campus Activity', backendType: 'Event', sort: '' },
+  { id: 'Resources', backendType: 'Resource', sort: '' },
+  { id: 'Discussions', backendType: 'Discussion', sort: '' },
+  { id: 'Marketplace', backendType: 'Marketplace', sort: '' },
 ];
 
 export default function DashboardPage() {
@@ -32,10 +32,10 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    // For MVP, we map the contextual frontend tabs to the existing backend feed types
-    fetchFeed(activeTab.backendType);
+    // Fetch feed with type and optional sort
+    fetchFeed(activeTab.backendType, 1, activeTab.sort);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab.backendType, fetchFeed]);
+  }, [activeTab.id, fetchFeed]);
 
   const quickActions = [
     { name: 'Find Team', icon: Users, path: '/teammates', color: 'text-blue-400', bg: 'bg-blue-500/10' },

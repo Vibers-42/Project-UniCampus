@@ -23,11 +23,10 @@ const StudyGroupSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Ensure admin is in members
-StudyGroupSchema.pre('save', function(next) {
+StudyGroupSchema.pre('save', async function() {
   if (this.admin && !this.members.includes(this.admin)) {
     this.members.push(this.admin);
   }
-  next();
 });
 
 module.exports = mongoose.model('Group', StudyGroupSchema);

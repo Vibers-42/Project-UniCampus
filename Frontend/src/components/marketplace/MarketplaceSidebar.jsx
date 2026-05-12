@@ -5,6 +5,7 @@ import api from '../../config/api';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function MarketplaceSidebar() {
+  const [allItems, setAllItems] = useState([]);
   const [recentItems, setRecentItems] = useState([]);
   const [stats, setStats] = useState({ active: 0, sold: 0 });
   const [loading, setLoading] = useState(true);
@@ -14,6 +15,7 @@ export default function MarketplaceSidebar() {
       try {
         const res = await api.get('/marketplace?limit=20&sort=-createdAt&includeSold=true');
         const items = res.data?.data?.items || [];
+        setAllItems(items);
         
         const active = items.filter(i => !i.isSold).length;
         const sold = items.filter(i => i.isSold).length;
@@ -27,9 +29,9 @@ export default function MarketplaceSidebar() {
     load();
   }, []);
 
-  // Extract popular categories from real data
+  // Compute popular categories from ALL fetched items
   const categoryCounts = {};
-  recentItems.forEach(item => {
+  allItems.forEach(item => {
     const cat = item.category || 'other';
     categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
   });
@@ -98,7 +100,7 @@ export default function MarketplaceSidebar() {
         )}
       </div>
 
-      {/* Popular Searches (static navigation aids — not pretending to be data) */}
+      {/* Popular Categories (computed from real listing data) */}
       <div className="bg-dark-900/50 rounded-2xl p-5 border border-dark-800">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-dark-200 flex items-center gap-2">
@@ -108,7 +110,10 @@ export default function MarketplaceSidebar() {
         </div>
         
         <div className="flex flex-wrap gap-2">
-          {['Electronics', 'Books', 'Stationery', 'Accessories', 'Lab Equipment', 'Furniture'].map(tag => (
+          {(Object.keys(categoryCounts).length > 0
+            ? Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k)
+            : ['Electronics', 'Books', 'Stationery', 'Lab Equipment']
+          ).map(tag => (
             <span key={tag} className="text-[10px] text-dark-300 bg-dark-800 hover:bg-dark-700 hover:text-dark-100 cursor-pointer px-2 py-1 rounded border border-dark-700 transition-colors">
               {tag}
             </span>

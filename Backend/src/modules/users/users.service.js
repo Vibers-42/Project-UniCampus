@@ -51,6 +51,8 @@ const { parsePagination, buildPaginationResult } = require('../../shared/utils/p
 // Adding a field here automatically updates the percentage calculation.
 
 const PROFILE_COMPLETION_FIELDS = [
+  'department',
+  'yearOfStudy',
   'bio',
   'skills',
   'interests',
@@ -58,6 +60,7 @@ const PROFILE_COMPLETION_FIELDS = [
   'rolesPreferred',
   'availability',
   'github',
+  'linkedin',
   'portfolio',
   'avatar',
 ];
@@ -503,6 +506,8 @@ const computeProfileCompletion = (user) => {
     if (Array.isArray(value) && value.length > 0) {
       filled++;
     } else if (typeof value === 'string' && value.trim().length > 0) {
+      filled++;
+    } else if (typeof value === 'number' && value > 0) {
       filled++;
     }
   }
