@@ -29,6 +29,11 @@ const connectDB = async () => {
       );
     }
 
+    // Enable Mongoose's built-in NoSQL injection protection.
+    // Strips $-prefixed operators (e.g., $gt, $ne) from query filters.
+    // This replaces express-mongo-sanitize which is incompatible with Express 5.
+    mongoose.set('sanitizeFilter', true);
+
     const conn = await mongoose.connect(env.MONGODB_URI);
 
     logger.info(`MongoDB connected: ${conn.connection.host}`);
